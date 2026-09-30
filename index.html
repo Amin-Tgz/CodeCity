@@ -55,6 +55,20 @@
       <select id="filter"></select>
     </div>
 
+    <div class="ctrl-row">
+      <label for="query">query / tag</label>
+      <form id="query-form">
+        <input id="query" type="search" placeholder="type:class  loc>200  lang:ts" autocomplete="off" />
+        <button type="submit" class="ghost-btn">run</button>
+      </form>
+      <div class="query-actions">
+        <button id="query-clear" class="mini-btn">clear</button>
+        <button id="query-save" class="mini-btn">save…</button>
+        <select id="query-saved" title="saved queries"></select>
+      </div>
+      <div id="query-count" class="muted-note"></div>
+    </div>
+
     <div class="panel-title">Map metrics</div>
     <div class="ctrl-grid">
       <label for="sel-height">height</label>
@@ -231,7 +245,8 @@
             <tr><td>Drag</td><td>orbit the city</td></tr>
             <tr><td>Wheel</td><td>zoom</td></tr>
             <tr><td>Right-drag</td><td>pan</td></tr>
-            <tr><td>Click</td><td>select a building → details</td></tr>
+            <tr><td>Click</td><td>select a building → details (+ members)</td></tr>
+            <tr><td>query box</td><td>tag matching buildings, dim the rest (<code>loc&gt;200</code>, <code>type:class</code>…)</td></tr>
             <tr><td>⟳</td><td>auto-orbit tour</td></tr>
             <tr><td>⌂</td><td>reset the camera</td></tr>
             <tr><td>?</td><td>open / close this help</td></tr>

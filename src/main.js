@@ -3,6 +3,7 @@ import { OrbitControls } from '../vendor/OrbitControls.js';
 import { City } from './city.js';
 import * as UI from './ui.js';
 import { groundTexture, skyTexture } from './textures.js';
+import { parseQuery, loadQueries, saveQuery } from './query.js';
 
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -108,6 +109,37 @@ function wireUI(model) {
   city.setStreetMode(selStreets.value);
 
   document.getElementById('chk-grid').onchange = (e) => { grid.visible = e.target.checked; };
+
+  // query / tagging engine
+  const qInput = document.getElementById('query');
+  const qCount = document.getElementById('query-count');
+  const qSaved = document.getElementById('query-saved');
+  const runQuery = (text) => {
+    const parsed = parseQuery(text);
+    if (parsed.empty) { city.highlightSubset(null); qCount.textContent = ''; return; }
+    const ids = model.buildings.filter(parsed.test).map((b) => b.id);
+    city.highlightSubset(ids);
+    qCount.textContent = `${ids.length} of ${model.buildings.length} tagged · ${parsed.describe}`;
+  };
+  const refreshSaved = () => {
+    const all = loadQueries();
+    qSaved.innerHTML = '<option value="">saved…</option>'
+      + Object.keys(all).map((k) => `<option value="${k}">${k}</option>`).join('');
+  };
+  document.getElementById('query-form').onsubmit = (e) => { e.preventDefault(); runQuery(qInput.value); };
+  document.getElementById('query-clear').onclick = () => {
+    qInput.value = ''; city.highlightSubset(null); qCount.textContent = '';
+  };
+  document.getElementById('query-save').onclick = () => {
+    const name = window.prompt('save query as'); if (!name) return;
+    saveQuery(name, qInput.value); refreshSaved(); qSaved.value = name;
+  };
+  qSaved.onchange = () => {
+    const all = loadQueries();
+    const t = all[qSaved.value];
+    if (t != null) { qInput.value = t; runQuery(t); }
+  };
+  refreshSaved();
 
   document.getElementById('auto-rotate').onclick = (e) => {
     controls.autoRotate = !controls.autoRotate;

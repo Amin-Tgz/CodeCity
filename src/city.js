@@ -43,6 +43,7 @@ export class City {
     this.streetMode = 'all';
     this.focusId = null;
     this.camera = null;
+    this.querySet = null;
     this._lodDist2 = Infinity;
     this._extraMats = [];
     this._lodAcc = 0;
@@ -313,9 +314,33 @@ export class City {
   _restore(id) {
     const e = this.byBuilding.get(id);
     if (!e) return;
+    const on = this.querySet && this.querySet.has(id);
     for (const m of e.materials) {
-      m.emissive.copy(m.userData.baseEmissive);
-      m.emissiveIntensity = m.userData.baseIntensity;
+      if (on) { m.emissive.set('#38bdf8'); m.emissiveIntensity = 0.55; }
+      else { m.emissive.copy(m.userData.baseEmissive); m.emissiveIntensity = m.userData.baseIntensity; }
+    }
+  }
+
+  // Tagging (paper's colour + transparency): dim everything except `ids`, which
+  // are tinted. Pass null to clear.
+  highlightSubset(ids) {
+    const set = ids ? new Set(ids) : null;
+    this.querySet = set;
+    for (const [id, e] of this.byBuilding) {
+      const on = !set || set.has(id);
+      for (const m of e.materials) {
+        if (set) {
+          m.transparent = true;
+          m.opacity = on ? 1 : 0.12;
+          if (on) { m.emissive.set('#38bdf8'); m.emissiveIntensity = 0.55; }
+          else { m.emissive.copy(m.userData.baseEmissive); m.emissiveIntensity = 0; }
+        } else {
+          m.transparent = false;
+          m.opacity = 1;
+          m.emissive.copy(m.userData.baseEmissive);
+          m.emissiveIntensity = m.userData.baseIntensity;
+        }
+      }
     }
   }
 

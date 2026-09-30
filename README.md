@@ -118,6 +118,11 @@ and applies to any codebase:
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
   analyse a codebase with the tool.
 
+**Query / tag** - the query box (`type:class`, `loc>200`, `lang:ts`,
+`district:backend`, or a bare word matching name/file; terms AND-combine)
+tints every matching building and dims the rest, and queries can be saved.
+Clicking a building lists its members (methods/attributes) for drill-down.
+
 Street modes: **all**, **selected building only** (relationship on demand -
 picking a building shows just its incident lanes), or **off**; plus a **grid**
 toggle. Distant buildings drop their window facade and shadows (level of
