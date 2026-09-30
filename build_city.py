@@ -33,6 +33,7 @@ import json
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -716,7 +717,57 @@ def scan_infra(root: Path, model: dict) -> dict:
     }
 
 
-def build(root: Path, out: Path, source: str, codegraph_path: str | None) -> dict:
+def scan_history(root: Path, max_frames: int = 48) -> dict | None:
+    """Per-commit net line counts per file (a cheap LOC proxy) from `git log`.
+
+    Returns {frames:[{hash,t,files,total}]} or None when git is unavailable.
+    """
+    try:
+        out = subprocess.check_output(
+            ["git", "-C", str(root), "log", "--reverse", "--no-merges",
+             "--pretty=format:@@%H%x09%at", "--numstat"],
+            text=True, errors="ignore", stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return None
+
+    commits: list[dict] = []
+    files: dict[str, int] = {}
+    cur: dict | None = None
+    for line in out.splitlines():
+        if line.startswith("@@"):
+            if cur is not None:
+                cur["files"] = dict(files)
+                commits.append(cur)
+            h, _, at = line[2:].partition("\t")
+            cur = {"hash": h, "t": int(at or 0)}
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 3 and parts[2]:
+            try:
+                a = int(parts[0]); d = int(parts[1])
+            except ValueError:
+                continue
+            files[parts[2]] = max(0, files.get(parts[2], 0) + a - d)
+    if cur is not None:
+        cur["files"] = dict(files)
+        commits.append(cur)
+
+    commits = [c for c in commits if c["files"]]
+    if not commits:
+        return None
+    if len(commits) > max_frames:
+        step = len(commits) / max_frames
+        sampled = [commits[min(len(commits) - 1, int(i * step))] for i in range(max_frames)]
+        sampled[-1] = commits[-1]
+        commits = sampled
+    for c in commits:
+        c["total"] = sum(c["files"].values())
+    return {"unit": "net lines", "frames": commits}
+
+
+def build(root: Path, out: Path, source: str, codegraph_path: str | None,
+          history: bool = False) -> dict:
     root = root.resolve()
     root_name = root.name
     db = find_codegraph(root, codegraph_path) if source in ("auto", "codegraph") else None
@@ -731,6 +782,11 @@ def build(root: Path, out: Path, source: str, codegraph_path: str | None) -> dic
         model = scan_tree(root, root_name)
 
     model["meta"]["infra"] = scan_infra(root, model)
+    if history:
+        hist = scan_history(root)
+        if hist:
+            model["meta"]["history"] = hist
+            print(f"[codecity] history: {len(hist['frames'])} frames")
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(model, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -749,9 +805,11 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=str(here / "city.json"), help="output city.json path")
     ap.add_argument("--source", choices=["auto", "codegraph", "scan"], default="auto")
     ap.add_argument("--codegraph", default=None, help="explicit path to codegraph.db")
+    ap.add_argument("--history", action="store_true",
+                    help="include a git-history timeline (requires git)")
     args = ap.parse_args(argv)
 
-    build(Path(args.root), Path(args.out), args.source, args.codegraph)
+    build(Path(args.root), Path(args.out), args.source, args.codegraph, args.history)
     return 0
 
 

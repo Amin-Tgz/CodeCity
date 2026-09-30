@@ -216,6 +216,10 @@ button { font: inherit; cursor: pointer; }
   align-items: center;
 }
 
+.timeline-host { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.timeline-host input[type="range"] { flex: 1; min-width: 90px; accent-color: var(--accent); }
+.tl-label { font-size: 10px; color: var(--muted); flex-basis: 100%; }
+
 .query-actions { display: flex; gap: 6px; margin-top: 6px; }
 .query-actions .mini-btn { flex: 0 0 auto; }
 #query-saved {

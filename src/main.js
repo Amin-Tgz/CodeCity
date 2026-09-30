@@ -5,6 +5,7 @@ import * as UI from './ui.js';
 import { groundTexture, skyTexture } from './textures.js';
 import { parseQuery, loadQueries, saveQuery } from './query.js';
 import { renderInfraHUD, buildFoundation, setInfraLive } from './infra.js';
+import { initTimeline } from './history.js';
 
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -246,6 +247,7 @@ async function boot() {
   buildWorld(groundSide);
   renderInfraHUD(model.meta.infra);
   scene.add(buildFoundation(model.meta.infra, groundSide));
+  initTimeline(model.meta.history, city);
   resetView();
   controls.update();
   wireUI(model);

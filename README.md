@@ -45,6 +45,7 @@ python build_city.py                       # auto: this repo (parent folder)
 python build_city.py D:\some\project       # any folder
 python build_city.py --source scan         # force the dependency-free scanner
 python build_city.py --codegraph path\to\codegraph.db
+python build_city.py --history             # also record a git-history timeline
 ```
 
 Two data sources, tried in order (`--source auto`, the default):
@@ -120,6 +121,9 @@ and applies to any codebase:
   3-D foundation podium with CPU/RAM bars in front of the city. Values are
   static **estimates** from code size + detected dependencies (can be replaced
   by live metrics from the optional local agent).
+- **Git-history time-lapse** — when built with `--history`, a timeline in the
+  control panel scrubs (or plays) the city growing commit by commit: buildings
+  appear as their files are first added and grow toward their final height.
 - **Auto-orbit** (⟳) gives a hands-free "city tour" camera.
 - **Help tab** (the **?** button, or press <kbd>?</kbd>) explains the metrics
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
