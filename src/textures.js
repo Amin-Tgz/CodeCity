@@ -26,7 +26,7 @@ let facadeCache = null;
 
 /**
  * A building facade: light wall with a grid of windows, plus a matching
- * emissive map whose lit windows glow at night.
+ * emissive map (a subset of windows) used for hover/selection highlighting.
  */
 export function facadeTextures() {
   if (facadeCache) return facadeCache;
@@ -70,7 +70,7 @@ export function facadeTextures() {
       wc.fillStyle = 'rgba(255,255,255,0.35)';
       wc.fillRect(x, y, w, h * 0.4);
 
-      // a small share of windows are lit at night (kept low on purpose)
+      // a small share of windows belong to the highlight emissive map
       if (Math.random() < 0.18) {
         const warm = Math.random() < 0.8 ? '#ffd79a' : '#fff2cf';
         gc.fillStyle = warm;
@@ -149,28 +149,8 @@ export function streetTexture() {
   return tex(c);
 }
 
-/** A reusable 2x256 sky gradient whose colours can be updated every frame. */
-export function dynamicSky() {
-  const c = canvas(2, 256);
-  const ctx = c.getContext('2d');
-  const texture = tex(c, { repeat: false });
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-  return {
-    texture,
-    set(top, bottom) {
-      const g = ctx.createLinearGradient(0, 0, 0, 256);
-      g.addColorStop(0, top);
-      g.addColorStop(0.55, bottom);
-      g.addColorStop(1, bottom);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 2, 256);
-      texture.needsUpdate = true;
-    },
-  };
-}
-
 // ---------------------------------------------------------------------------
-// Sky dome gradient + stars
+// Sky dome gradient
 // ---------------------------------------------------------------------------
 
 export function skyTexture(top, bottom) {
@@ -201,31 +181,6 @@ export function groundTexture() {
   const t = tex(c);
   t.repeat.set(28, 28);
   return t;
-}
-
-export function starField(count = 900, radius = 900) {
-  const positions = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    const u = Math.random();
-    const v = Math.random() * 0.5; // upper hemisphere
-    const theta = u * Math.PI * 2;
-    const phi = Math.acos(1 - v);
-    const r = radius;
-    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-    positions[i * 3 + 1] = Math.abs(r * Math.cos(phi)) + 40;
-    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({
-    color: 0xdfe8ff,
-    size: 2.4,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.9,
-    depthWrite: false,
-  });
-  return new THREE.Points(geo, mat);
 }
 
 /** Scale a box geometry's UVs so windows tile at a sensible density. */

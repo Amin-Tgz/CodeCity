@@ -32,12 +32,6 @@
     <div id="stats" class="stats"></div>
 
     <div class="top-actions">
-      <div id="time-mode" class="segmented" title="time of day">
-        <button data-mode="day" class="active" title="day">☀</button>
-        <button data-mode="dusk" title="dusk">◑</button>
-        <button data-mode="night" title="night">☾</button>
-      </div>
-      <button id="time-play" class="icon-btn-lg active" title="pause">⏸</button>
       <button id="auto-rotate" class="icon-btn-lg" title="auto-orbit">⟳</button>
       <button id="reset-view" class="icon-btn-lg" title="reset view">⌂</button>
       <button id="help-btn" class="icon-btn-lg" title="help (?)">?</button>
@@ -216,8 +210,6 @@
             <tr><td>Wheel</td><td>zoom</td></tr>
             <tr><td>Right-drag</td><td>pan</td></tr>
             <tr><td>Click</td><td>select a building → details</td></tr>
-            <tr><td>☀ ◑ ☾</td><td>jump to a time of day (night lights the windows)</td></tr>
-            <tr><td>▶ / ⏸</td><td>play / pause the ~1 min day cycle (or press <kbd>space</kbd>)</td></tr>
             <tr><td>⟳</td><td>auto-orbit tour</td></tr>
             <tr><td>⌂</td><td>reset the camera</td></tr>
             <tr><td>?</td><td>open / close this help</td></tr>
@@ -234,7 +226,7 @@
 
   <div id="tooltip"></div>
 
-  <div id="hint">drag = orbit · wheel = zoom · right-drag = pan · click a building for details · space = play/pause</div>
+  <div id="hint">drag = orbit · wheel = zoom · right-drag = pan · click a building for details</div>
 
   <script type="module" src="./src/main.js"></script>
 </body>

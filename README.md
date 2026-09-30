@@ -28,7 +28,7 @@ python serve.py            # builds city.json (if missing) and opens the browser
 
 Then drag to orbit, wheel to zoom, right-drag to pan, click a building for
 details. Use the search box, the district filter, the metric dropdowns, and
-the streets / grid toggles; ▶/⏸ (or <kbd>space</kbd>) pauses the day cycle.
+the streets / grid toggles.
 
 No `serve.py`? Any static server works, because the app is plain ES modules:
 
@@ -104,13 +104,8 @@ The city is built procedurally - no external 3D models, so it stays offline
 and applies to any codebase:
 
 - **Buildings** are plain boxes with a procedurally generated **window
-  facade**. A matching emissive map lights a small subset of windows after
-  dark (off by day, dim yellow at dusk, full yellow at night); height varies
-  per building (stable hash) so equal-metric modules are not uniform slabs.
-- **Time of day** runs as one continuous **~60 s cycle** (day → dusk → night,
-  with a longer day) that re-lights the whole scene - sky gradient, sun, fog,
-  exposure and window glow - with a **star field** and a **moon + moonlight**
-  at night. ▶/⏸ (or <kbd>space</kbd>) pauses it; ☀ / ◑ / ☾ jump to a phase.
+  facade**; height varies per building (stable hash) so equal-metric modules
+  are not uniform slabs. The scene is fixed **daytime** (no day/night cycle).
 - **Districts** are raised plates with a curb. **Streets** are dependency
   edges laid on the ground: wide **roads** (yellow lane lines) for the heaviest
   links, narrower **streets / alleys** (white centre line) for the rest, with

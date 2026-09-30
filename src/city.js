@@ -26,7 +26,6 @@ export class City {
     this.onHover = onHover;
     this.mapping = { height: 'nom', footprint: 'noa', color: 'loc' };
     this.raycaster = new THREE.Raycaster();
-    this.windowGlow = 0;
 
     this.root = new THREE.Group();
     scene.add(this.root);
@@ -75,19 +74,6 @@ export class City {
   setRoadsVisible(v) {
     this.roadGroup.visible = v;
     this.walkerGroup.visible = v;
-  }
-
-  // Window glow intensity (0 by day, dim at dusk, full at night) driven by the
-  // continuous day/night cycle in main.js.
-  setWindowGlow(intensity) {
-    this.windowGlow = intensity;
-    const sid = this.selected && this.selected.userData.buildingId;
-    for (const [id, e] of this.byBuilding) {
-      for (const m of e.materials) if (m.userData.window) m.userData.baseIntensity = intensity;
-      if (id !== this.hoveredId && id !== sid) this._restore(id);
-    }
-    if (this.hoveredId) this._apply(this.hoveredId, HOVER, 0.45, true);
-    if (sid) this._apply(sid, SELECT, 0.5, true);
   }
 
   // Walk the pedestrians back and forth along their street.
@@ -205,7 +191,6 @@ export class City {
     this._buildWalkers();
     this.root.position.set(-side / 2, 0, -side / 2);
     this.groundSide = side;
-    this.setWindowGlow(this.windowGlow);
   }
 
   _addBuilding(b, rect, { hKey, cKey, hMax, cMin, cMax }) {
@@ -227,13 +212,13 @@ export class City {
       map: this._facade.map,
       emissiveMap: this._facade.emissiveMap,
       emissive: new THREE.Color('#ffd79a'),
-      emissiveIntensity: this.windowGlow,
+      emissiveIntensity: 0,
       roughness: 0.72,
       metalness: 0.08,
     });
     mat.userData.window = true;
     mat.userData.baseEmissive = new THREE.Color('#ffd79a');
-    mat.userData.baseIntensity = this.windowGlow;
+    mat.userData.baseIntensity = 0;
 
     const body = new THREE.Mesh(geo, mat);
     body.position.y = 0.62 + h / 2;
