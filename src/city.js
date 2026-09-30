@@ -81,6 +81,22 @@ export class City {
 
   setLodDistance(d) { this._lodDist2 = d * d; }
 
+  // brief emissive flash on a building (used by the member drill-down)
+  pulseBuilding(id) {
+    const e = this.byBuilding.get(id);
+    if (!e) return;
+    for (const m of e.materials) { m.emissive.set('#ffd166'); m.emissiveIntensity = 1.3; }
+    clearTimeout(this._pulseT);
+    this._pulseT = setTimeout(() => {
+      const sid = this.selected && this.selected.userData.buildingId;
+      for (const m of e.materials) {
+        m.emissive.copy(m.userData.baseEmissive);
+        m.emissiveIntensity = m.userData.baseIntensity;
+      }
+      if (sid) this._apply(sid, SELECT, 0.5, true);
+    }, 900);
+  }
+
   // Walk the pedestrians and apply distance-based level of detail.
   update(dt) {
     if (this.street) this.street.update(dt);

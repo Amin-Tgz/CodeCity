@@ -308,6 +308,39 @@ button { font: inherit; cursor: pointer; }
 #details td { padding: 4px 0; vertical-align: top; }
 #details td:first-child { color: var(--muted); padding-inline-end: 10px; white-space: nowrap; }
 #details td:last-child { word-break: break-all; }
+.details-section {
+  margin-top: 14px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.member-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 190px;
+  overflow: auto;
+}
+.member-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: start;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  font-size: 11.5px;
+}
+.member-row:hover { border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.12); }
+.member-row.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.2); }
+.member-name { word-break: break-all; }
+.member-meta { color: var(--muted); white-space: nowrap; font-size: 10.5px; }
 .details-actions { margin-top: 12px; }
 .mini-btn {
   padding: 6px 12px;

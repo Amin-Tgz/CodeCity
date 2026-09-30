@@ -248,6 +248,16 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
                     body = "\n".join(lines[(c["start_line"] or 1) - 1: c["end_line"] or len(lines)])
                 attrs = _extract_attributes(body, lang) or props
                 bid = f"{fp}::{c['name']}"
+                member_list = [
+                    {
+                        "name": m["name"],
+                        "kind": m["kind"],
+                        "loc": max(1, (m["end_line"] or 0) - (m["start_line"] or 0) + 1),
+                        "line": m["start_line"] or 1,
+                    }
+                    for m in members
+                    if m["kind"] in ("method", "property", "variable", "constant")
+                ]
                 buildings.append({
                     "id": bid,
                     "name": c["name"],
@@ -260,6 +270,7 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
                     "attributes": max(attrs, 1),
                     "functions": 0,
                     "start_line": c["start_line"] or 1,
+                    "members": member_list,
                 })
                 node_to_building[c["id"]] = bid
                 for m in members:
@@ -276,6 +287,15 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
             loc = end or _count_lines(text_for(fp)) or 1
             name = os.path.basename(fp)
             bid = f"{fp}::{name}"
+            member_list = [
+                {
+                    "name": n["name"],
+                    "kind": n["kind"],
+                    "loc": max(1, (n["end_line"] or 0) - (n["start_line"] or 0) + 1),
+                    "line": n["start_line"] or 1,
+                }
+                for n in (funcs + vars_)
+            ]
             buildings.append({
                 "id": bid,
                 "name": name,
@@ -288,6 +308,7 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
                 "attributes": max(len(vars_), 1),
                 "functions": len(funcs),
                 "start_line": 1,
+                "members": member_list,
             })
             for n in file_nodes:
                 node_to_building[n["id"]] = bid
@@ -447,6 +468,7 @@ def _mk(rel: str, name: str, kind: str, lang: str, loc: int, methods: int,
         "attributes": max(1, attrs),
         "functions": funcs,
         "start_line": start,
+        "members": [],
     }
 
 

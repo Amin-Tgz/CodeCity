@@ -143,6 +143,12 @@ function initHelp() {
   });
 }
 
+function showDetails(b) {
+  UI.renderDetails(b, {
+    onMember: (building, member) => { if (member) city.pulseBuilding(building.id); },
+  });
+}
+
 function focusBuilding(b) {
   const p = city.focusOn(b.id);
   if (!p) return;
@@ -151,7 +157,7 @@ function focusBuilding(b) {
   camera.position.copy(target).add(new THREE.Vector3(groundSide * 0.5, groundSide * 0.5, groundSide * 0.5));
   const e = city.byBuilding.get(b.id);
   if (e) city.select(e.group.children[0]);
-  UI.renderDetails(b);
+  showDetails(b);
 }
 
 function resetView() {
@@ -180,7 +186,7 @@ canvas.addEventListener('pointerup', (e) => {
   const hit = city.hover(pointer, camera);
   const b = hit ? city.select(hit) : null;
   city.setFocusBuilding(b ? b.id : null);
-  UI.renderDetails(b);
+  showDetails(b);
 });
 
 // --- boot -----------------------------------------------------------------

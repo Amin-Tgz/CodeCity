@@ -30,7 +30,7 @@ export function renderLegend(colorKey) {
   $('ramp-title').textContent = metricLabel[colorKey] || colorKey;
 }
 
-export function renderDetails(building) {
+export function renderDetails(building, { onMember } = {}) {
   const box = $('details');
   if (!building) {
     box.classList.remove('open');
@@ -47,6 +47,14 @@ export function renderDetails(building) {
     ['top-level funcs', building.functions],
     ['dependencies', building.deps || 0],
   ];
+  const members = building.members || [];
+  const membersHtml = members.length ? `
+    <div class="details-section">members (${members.length}) · click to highlight</div>
+    <div class="member-list">${members.map((m, i) => `
+      <button class="member-row" data-mi="${i}" title="line ${m.line}">
+        <span class="member-name">${escapeHtml(m.name)}</span>
+        <span class="member-meta">${escapeHtml(m.kind)} · ${m.loc} LOC</span>
+      </button>`).join('')}</div>` : '';
   box.innerHTML = `
     <div class="details-head">
       <div>
@@ -56,6 +64,7 @@ export function renderDetails(building) {
       <button id="details-close" class="icon-btn" title="close">&times;</button>
     </div>
     <table>${rows.map(([k, v]) => `<tr><td>${k}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}</table>
+    ${membersHtml}
     <div class="details-actions">
       <button id="details-open-file" class="mini-btn">copy path</button>
     </div>`;
@@ -66,6 +75,13 @@ export function renderDetails(building) {
     e.target.textContent = 'copied';
     setTimeout(() => { e.target.textContent = 'copy path'; }, 1200);
   };
+  box.querySelectorAll('.member-row').forEach((row) => {
+    row.onclick = () => {
+      box.querySelectorAll('.member-row.active').forEach((r) => r.classList.remove('active'));
+      row.classList.add('active');
+      if (onMember) onMember(building, members[+row.dataset.mi]);
+    };
+  });
 }
 
 export function buildDistrictList(model, onPick) {
