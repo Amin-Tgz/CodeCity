@@ -46,6 +46,7 @@ python build_city.py D:\some\project       # any folder
 python build_city.py --source scan         # force the dependency-free scanner
 python build_city.py --codegraph path\to\codegraph.db
 python build_city.py --history             # also record a git-history timeline
+python build_city.py --coverage cov.json   # colour by coverage {path: pct}
 ```
 
 Two data sources, tried in order (`--source auto`, the default):
@@ -161,7 +162,10 @@ The three dropdowns in the left panel let you remap the city live:
 - **colour** - lines (LOC, default, slate→teal→gold→crimson), methods,
   attributes, dependencies
 
-Changing a mapping re-lays-out and re-renders the city immediately.
+Changing a mapping re-lays-out and re-renders the city immediately. The
+**colour** dropdown also offers semantic modes: **language** (a hue per
+language, shown as a swatch legend) and **coverage** (red → green), the latter
+only when the model was built with `--coverage`.
 
 ## Notes
 

@@ -282,6 +282,9 @@ button { font: inherit; cursor: pointer; }
 }
 #ramp canvas { display: block; width: 100%; height: 100%; }
 .ramp-row span { font-size: 10px; color: var(--muted); }
+.legend-swatches { display: flex; flex-wrap: wrap; gap: 5px 10px; font-size: 10.5px; color: var(--muted); }
+.swatch { display: inline-flex; align-items: center; gap: 4px; }
+.swatch i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
 .legend-notes { margin-top: 11px; display: grid; gap: 4px; font-size: 11px; color: var(--muted); }
 .legend-notes b { color: var(--text); font-weight: 600; }
 

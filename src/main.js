@@ -100,9 +100,13 @@ function wireUI(model) {
   const selF = document.getElementById('sel-footprint');
   const selC = document.getElementById('sel-color');
   const selM = document.getElementById('sel-mode');
+  if (model.buildings.some((b) => b.coverage != null)) {
+    const opt = document.getElementById('opt-coverage');
+    if (opt) opt.style.display = '';
+  }
   const applyMapping = () => {
     city.setMapping({ height: selH.value, footprint: selF.value, color: selC.value, mode: selM.value });
-    UI.renderLegend(selC.value);
+    UI.renderLegend(selC.value, model);
   };
   selH.onchange = selF.onchange = selC.onchange = selM.onchange = applyMapping;
 
@@ -156,7 +160,7 @@ function wireUI(model) {
   };
 
   document.getElementById('reset-view').onclick = () => resetView();
-  UI.renderLegend(selC.value);
+  UI.renderLegend(selC.value, model);
 }
 
 // --- help tab -------------------------------------------------------------

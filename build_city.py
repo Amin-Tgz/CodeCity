@@ -766,8 +766,53 @@ def scan_history(root: Path, max_frames: int = 48) -> dict | None:
     return {"unit": "net lines", "frames": commits}
 
 
+def load_coverage(root: Path, path: str | None) -> dict | None:
+    """Read a generic coverage summary: { "path/file": pct | {pct} }."""
+    if not path:
+        return None
+    p = Path(path)
+    if not p.is_absolute():
+        p = root / p
+    if not p.exists():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8", errors="ignore"))
+    except Exception:
+        return None
+
+    def pct_of(v):
+        if isinstance(v, (int, float)):
+            return float(v) / 100 if v > 1 else float(v)
+        if isinstance(v, dict):
+            for k in ("pct", "lines", "statements", "line"):
+                if k in v:
+                    x = v[k]
+                    if isinstance(x, dict) and "pct" in x:
+                        x = x["pct"]
+                    if isinstance(x, (int, float)):
+                        return float(x) / 100 if x > 1 else float(x)
+        return None
+
+    cov = {}
+    for k, v in data.items():
+        pc = pct_of(v)
+        if pc is not None:
+            cov[str(k).replace("\\", "/")] = max(0.0, min(1.0, pc))
+    return cov
+
+
+def coverage_for(file: str, cov: dict) -> float | None:
+    f = file.replace("\\", "/")
+    if f in cov:
+        return cov[f]
+    for k, v in cov.items():
+        if k.endswith(f) or f.endswith(k):
+            return v
+    return None
+
+
 def build(root: Path, out: Path, source: str, codegraph_path: str | None,
-          history: bool = False) -> dict:
+          history: bool = False, coverage: str | None = None) -> dict:
     root = root.resolve()
     root_name = root.name
     db = find_codegraph(root, codegraph_path) if source in ("auto", "codegraph") else None
@@ -787,6 +832,15 @@ def build(root: Path, out: Path, source: str, codegraph_path: str | None,
         if hist:
             model["meta"]["history"] = hist
             print(f"[codecity] history: {len(hist['frames'])} frames")
+    cov = load_coverage(root, coverage)
+    if cov:
+        n = 0
+        for b in model["buildings"]:
+            c = coverage_for(b["file"], cov)
+            if c is not None:
+                b["coverage"] = round(c, 4)
+                n += 1
+        print(f"[codecity] coverage: matched {n} buildings")
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(model, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -807,9 +861,12 @@ def main(argv=None) -> int:
     ap.add_argument("--codegraph", default=None, help="explicit path to codegraph.db")
     ap.add_argument("--history", action="store_true",
                     help="include a git-history timeline (requires git)")
+    ap.add_argument("--coverage", default=None,
+                    help="JSON coverage summary {path: pct} to colour by test coverage")
     args = ap.parse_args(argv)
 
-    build(Path(args.root), Path(args.out), args.source, args.codegraph, args.history)
+    build(Path(args.root), Path(args.out), args.source, args.codegraph,
+          args.history, args.coverage)
     return 0
 
 

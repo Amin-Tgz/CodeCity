@@ -3,7 +3,15 @@ import { treemap, inset } from './layout.js';
 import {
   METRICS, locColor, heatColor, districtHue, norm, heightFor, hash01,
   boxplot, categoryFor, categoryHeights, categoryFootprints,
+  languageColor, coverageColor,
 } from './metrics.js';
+
+function colorFor(b, cKey, cMin, cMax) {
+  if (cKey === 'language') return languageColor(b.language);
+  if (cKey === 'coverage') return coverageColor(norm(Number(b.coverage ?? 0), 0, 1));
+  const t = norm(METRICS[cKey].get(b), cMin, cMax);
+  return cKey === 'loc' ? locColor(t) : heatColor(t);
+}
 import { facadeTextures, applyWindowUV } from './textures.js';
 import { StreetNetwork, STREET_Y } from './streets.js';
 
@@ -168,7 +176,8 @@ export class City {
       ? heightFor(METRICS[hKey].get(b), hMax)
       : hCats[categoryFor(METRICS[hKey].get(b), hStats, mode, hKey)]);
 
-    const cVals = buildings.map((b) => METRICS[cKey].get(b));
+    const isMetricColor = !!METRICS[cKey];
+    const cVals = isMetricColor ? buildings.map((b) => METRICS[cKey].get(b)) : [0];
     const cMax = Math.max(1, ...cVals);
     const cMin = Math.min(...cVals);
 
@@ -252,8 +261,7 @@ export class City {
     const hVar = flat ? 1 : 0.86 + 0.28 * hash01(b.id + 'h');
     const h = Math.max(3.2, heightBase * hVar);
 
-    const t = norm(METRICS[cKey].get(b), cMin, cMax);
-    const color = cKey === 'loc' ? locColor(t) : heatColor(t);
+    const color = colorFor(b, cKey, cMin, cMax);
 
     // plain box building
     const geo = new THREE.BoxGeometry(w, h, d);

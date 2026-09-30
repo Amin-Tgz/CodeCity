@@ -1,4 +1,4 @@
-import { makeRampCanvas, locColor, heatColor } from './metrics.js';
+import { makeRampCanvas, locColor, heatColor, coverageColor, languageColor } from './metrics.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,17 +16,31 @@ export function renderStats(model) {
   $('source-badge').title = model.meta.root;
 }
 
-export function renderLegend(colorKey) {
-  const ramp = colorKey === 'loc' ? locColor : heatColor;
-  const cv = makeRampCanvas(ramp);
+export function renderLegend(colorKey, model) {
   const host = $('ramp');
+  if (colorKey === 'language') {
+    const langs = Object.keys((model && model.meta && model.meta.languages) || {});
+    host.innerHTML = '<div class="legend-swatches">' + langs.map((l) =>
+      `<span class="swatch"><i style="background:#${languageColor(l).getHexString()}"></i>${escapeHtml(l)}</span>`).join('') + '</div>';
+    host.style.height = 'auto';
+    $('ramp-lo').textContent = '';
+    $('ramp-hi').textContent = '';
+    $('ramp-title').textContent = 'language';
+    return;
+  }
+  host.style.height = '';
+  const ramp = colorKey === 'loc' ? locColor : colorKey === 'coverage' ? coverageColor : heatColor;
+  const cv = makeRampCanvas(ramp);
   host.innerHTML = '';
   cv.style.width = '100%';
   cv.style.height = '100%';
   host.appendChild(cv);
-  const metricLabel = { loc: 'lines of code (LOC)', nom: 'methods (NOM)', noa: 'attributes (NOA)', deps: 'dependencies' };
-  $('ramp-lo').textContent = 'low';
-  $('ramp-hi').textContent = 'high';
+  const metricLabel = {
+    loc: 'lines of code (LOC)', nom: 'methods (NOM)', noa: 'attributes (NOA)',
+    deps: 'dependencies', coverage: 'test coverage',
+  };
+  $('ramp-lo').textContent = colorKey === 'coverage' ? 'low' : 'low';
+  $('ramp-hi').textContent = colorKey === 'coverage' ? 'high' : 'high';
   $('ramp-title').textContent = metricLabel[colorKey] || colorKey;
 }
 

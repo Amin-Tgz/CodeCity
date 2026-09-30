@@ -42,6 +42,24 @@ export function heatColor(t) {
   return rampColor(t, HEAT);
 }
 
+// semantic colour: language (stable hue per language name)
+export function languageColor(lang) {
+  let h = 0;
+  const s = String(lang || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return new THREE.Color().setHSL(h / 360, 0.5, 0.56);
+}
+
+// semantic colour: test coverage (red -> amber -> green)
+const COVERAGE = [
+  new THREE.Color('#ef4444'),
+  new THREE.Color('#f59e0b'),
+  new THREE.Color('#22c55e'),
+];
+export function coverageColor(t) {
+  return rampColor(t, COVERAGE);
+}
+
 export function districtHue(i, depth = 0) {
   const hue = ((i * 0.618033988749895) + depth * 0.07) % 1;
   // nesting depth (paper: package level) also drives saturation + lightness
