@@ -4,6 +4,7 @@ import { City } from './city.js';
 import * as UI from './ui.js';
 import { groundTexture, skyTexture } from './textures.js';
 import { parseQuery, loadQueries, saveQuery } from './query.js';
+import { renderInfraHUD, buildFoundation, setInfraLive } from './infra.js';
 
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -243,6 +244,8 @@ async function boot() {
   city.camera = camera;
   city.setLodDistance(groundSide * 0.5);
   buildWorld(groundSide);
+  renderInfraHUD(model.meta.infra);
+  scene.add(buildFoundation(model.meta.infra, groundSide));
   resetView();
   controls.update();
   wireUI(model);

@@ -573,6 +573,149 @@ def assemble(buildings, roads, root: Path, root_name: str,
 # main
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# infrastructure scan (DevOps layer): services + CPU/RAM estimates
+# ---------------------------------------------------------------------------
+
+HEAVY = ("torch", "transformers", "tensorflow", "onnxruntime", "chromadb", "llama",
+         "sentence-transformers", "accelerate", "numpy", "scipy", "pandas", "faiss")
+DB = ("sqlite", "psycopg", "asyncpg", "pymongo", "redis", "mysql", "sqlalchemy",
+      "alembic", "duckdb", "chromadb")
+WEB = ("fastapi", "uvicorn", "flask", "django", "starlette", "gunicorn", "httpx", "aiohttp")
+FRONT = ("react", "next", "vue", "svelte", "express", "vite", "typescript", "tailwind", "eslint")
+
+
+def _classify(name: str) -> str:
+    n = name.lower()
+    if any(k in n for k in HEAVY):
+        return "ai/compute"
+    if any(k in n for k in DB):
+        return "database"
+    if any(k in n for k in WEB):
+        return "web"
+    if any(k in n for k in FRONT):
+        return "frontend"
+    if any(k in n for k in ("docker", "compose", "container")):
+        return "container"
+    return "dependency"
+
+
+def _dep_name(raw: str) -> str:
+    raw = raw.strip().strip('"\'')
+    if not raw or raw.startswith("#"):
+        return ""
+    return re.split(r"[<>=!~\[; (]", raw)[0].strip()
+
+
+def scan_infra(root: Path, model: dict) -> dict:
+    services: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(name: str, category: str, source: str):
+        name = (name or "").strip()
+        if not name:
+            return
+        key = (name.lower(), category)
+        if key in seen:
+            return
+        seen.add(key)
+        services.append({"name": name, "category": category, "source": source})
+
+    SKIP = {"node_modules", ".git", ".venv", "venv", "env", "dist", "build",
+            "__pycache__", ".next", "out", ".codegraph", "site-packages", "coverage"}
+
+    def find(pred, maxdepth=5):
+        hits = []
+        for dp, dirs, files in os.walk(root):
+            rel = Path(dp).relative_to(root)
+            if len(rel.parts) >= maxdepth:
+                dirs[:] = []
+            dirs[:] = [d for d in dirs if d not in SKIP]
+            for f in files:
+                if pred(f):
+                    hits.append(Path(dp) / f)
+        return hits
+
+    def read(p: Path) -> str:
+        try:
+            return p.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            return ""
+
+    def src(p: Path) -> str:
+        try:
+            return str(p.relative_to(root))
+        except Exception:
+            return p.name
+
+    for p in find(lambda f: f.startswith("requirements") and f.endswith(".txt")):
+        for line in read(p).splitlines():
+            n = _dep_name(line)
+            if n:
+                add(n, _classify(n), src(p))
+
+    for p in find(lambda f: f == "pyproject.toml"):
+        pyt = read(p)
+        for m in re.finditer(r'^\s*"([A-Za-z0-9_.\-]+)\s*[<>=~!]', pyt, re.M):
+            add(m.group(1), _classify(m.group(1)), src(p))
+        for m in re.finditer(r"^\s*([A-Za-z0-9_.\-]+)\s*=\s*[\"']?[\^~>=]", pyt, re.M):
+            add(m.group(1), _classify(m.group(1)), src(p))
+
+    for p in find(lambda f: f == "package.json"):
+        try:
+            pkg = json.loads(read(p) or "{}")
+        except Exception:
+            continue
+        for bucket in ("dependencies", "devDependencies"):
+            for name in (pkg.get(bucket) or {}):
+                add(name, _classify(name), src(p))
+
+    for p in find(lambda f: f.startswith("docker-compose") or f.startswith("compose.")):
+        text = read(p)
+        block = re.search(r"^services:\s*$(.*?)(^\S|\Z)", text, re.M | re.S)
+        if block:
+            for m in re.finditer(r"^ {2}([A-Za-z0-9_.\-]+):", block.group(1), re.M):
+                add(m.group(1), "container", src(p))
+
+    for p in find(lambda f: f == "Dockerfile" or f.startswith("Dockerfile.")):
+        for m in re.finditer(r"^\s*FROM\s+([^\s]+)", read(p), re.M | re.I):
+            add(m.group(1), "container", src(p))
+
+    # databases / stores present as files
+    for name in ("chat_history.db", "settings.db", "manual_faq.db", "products.db", "parents.db"):
+        if (root / "backend" / "data" / name).exists() or (root / "data" / name).exists():
+            add(name, "database", "sqlite")
+
+    # ---- estimates ----
+    t = model["meta"]["totals"]
+    loc = t["loc"]
+    heavy = sum(1 for s in services if s["category"] == "ai/compute")
+    dbn = sum(1 for s in services if s["category"] == "database")
+    containers = sum(1 for s in services if s["category"] == "container")
+
+    def clamp01(x):
+        return 0.0 if x < 0 else 1.0 if x > 1 else x
+
+    cpu_score = clamp01(loc / 40000 * 0.55 + t["roads"] / 1500 * 0.3 + containers / 6 * 0.15)
+    ram_score = clamp01(t["attributes"] / 1500 * 0.35 + t["buildings"] / 500 * 0.2
+                        + heavy / 6 * 0.35 + dbn / 6 * 0.1)
+    return {
+        "cpu": {
+            "score": round(cpu_score, 3),
+            "pct": round(cpu_score * 100),
+            "estimate": f"{round(cpu_score * 4 + 0.5, 1)} vCPU under load",
+        },
+        "ram": {
+            "score": round(ram_score, 3),
+            "pct": round(ram_score * 100),
+            "estimate": f"{round(ram_score * 8192)} MB resident",
+        },
+        "services": services,
+        "totals": {"loc": loc, "buildings": t["buildings"], "roads": t["roads"], "heavy_deps": heavy},
+        "note": "Static estimates from code size + detected manifests; not measured runtime usage.",
+    }
+
+
 def build(root: Path, out: Path, source: str, codegraph_path: str | None) -> dict:
     root = root.resolve()
     root_name = root.name
@@ -586,6 +729,8 @@ def build(root: Path, out: Path, source: str, codegraph_path: str | None) -> dic
     else:
         print(f"[codecity] source: scan  ({root})")
         model = scan_tree(root, root_name)
+
+    model["meta"]["infra"] = scan_infra(root, model)
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(model, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

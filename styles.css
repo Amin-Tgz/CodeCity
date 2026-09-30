@@ -478,6 +478,42 @@ button { font: inherit; cursor: pointer; }
 }
 #tooltip .muted { color: var(--muted); }
 
+/* ---------- infrastructure / devops band ---------- */
+#infra {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 40px));
+  padding: 11px 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+  z-index: 24;
+}
+.infra-head { font-size: 12px; margin-bottom: 8px; }
+.infra-head .muted { color: var(--muted); }
+.infra-gauges { display: flex; gap: 20px; }
+.gauge { flex: 1; }
+.gauge-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.gauge-pct { color: var(--text); font-weight: 700; }
+.gauge-bar {
+  height: 8px;
+  margin: 4px 0 3px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.gauge-bar i { display: block; height: 100%; border-radius: 5px; transition: width 0.4s; }
+.gauge-est { font-size: 10.5px; color: var(--muted); }
+.infra-chips { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 9px; max-height: 76px; overflow: auto; }
+.infra-group { display: flex; gap: 6px; font-size: 10.5px; align-items: baseline; }
+.infra-cat { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.infra-names { color: var(--muted); }
+.infra-note { margin-top: 7px; font-size: 10px; color: var(--muted); opacity: 0.85; }
+
 #hint {
   position: fixed;
   bottom: 8px;

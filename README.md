@@ -113,6 +113,13 @@ and applies to any codebase:
   corridors). Wide **roads** (yellow lane lines) carry the heaviest links,
   narrower **streets / alleys** (white centre line) the rest, and **people**
   walk each lane - their number matches the connections it carries.
+- **Infrastructure (DevOps) layer** — the project's runtime footprint is shown
+  under the city: a bottom band with **CPU/RAM gauges** and the components
+  detected from its manifests (`requirements.txt`, `pyproject.toml`,
+  `package.json`, `docker-compose`, `Dockerfile`, SQLite stores), plus a small
+  3-D foundation podium with CPU/RAM bars in front of the city. Values are
+  static **estimates** from code size + detected dependencies (can be replaced
+  by live metrics from the optional local agent).
 - **Auto-orbit** (⟳) gives a hands-free "city tour" camera.
 - **Help tab** (the **?** button, or press <kbd>?</kbd>) explains the metrics
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
