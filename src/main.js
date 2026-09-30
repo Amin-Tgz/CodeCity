@@ -8,6 +8,7 @@ import { renderInfraHUD, buildFoundation, setInfraLive } from './infra.js';
 import { initTimeline } from './history.js';
 import { diffAgainst } from './compare.js';
 import { initA11y } from './accessible.js';
+import { initLive } from './live.js';
 
 const canvas = document.getElementById('scene');
 // preserveDrawingBuffer so the "PNG" export can read the canvas back
@@ -293,6 +294,7 @@ async function boot() {
   initTimeline(model.meta.history, city);
   resetView();
   initA11y(model, city, { onSelect: (b) => focusBuilding(b) });
+  initLive();
   controls.update();
   wireUI(model);
   initHelp();

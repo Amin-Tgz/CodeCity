@@ -120,8 +120,9 @@ and applies to any codebase:
   detected from its manifests (`requirements.txt`, `pyproject.toml`,
   `package.json`, `docker-compose`, `Dockerfile`, SQLite stores), plus a small
   3-D foundation podium with CPU/RAM bars in front of the city. Values are
-  static **estimates** from code size + detected dependencies (can be replaced
-  by live metrics from the optional local agent).
+  static **estimates** from code size + detected dependencies. Run
+  `python metrics_agent.py` (stdlib, optional) to replace them with **live**
+  CPU/RAM sampled from the machine.
 - **Git-history time-lapse** — when built with `--history`, a timeline in the
   control panel scrubs (or plays) the city growing commit by commit: buildings
   appear as their files are first added and grow toward their final height.
