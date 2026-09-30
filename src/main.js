@@ -6,9 +6,11 @@ import { groundTexture, skyTexture } from './textures.js';
 import { parseQuery, loadQueries, saveQuery } from './query.js';
 import { renderInfraHUD, buildFoundation, setInfraLive } from './infra.js';
 import { initTimeline } from './history.js';
+import { diffAgainst } from './compare.js';
 
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+// preserveDrawingBuffer so the "PNG" export can read the canvas back
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -146,6 +148,42 @@ function wireUI(model) {
     if (t != null) { qInput.value = t; runQuery(t); }
   };
   refreshSaved();
+
+  // export + compare
+  const download = (href, name) => {
+    const a = document.createElement('a');
+    a.href = href; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  document.getElementById('export-png').onclick = () => {
+    renderer.render(scene, camera);
+    download(renderer.domElement.toDataURL('image/png'), 'codecity.png');
+  };
+  document.getElementById('export-json').onclick = () => {
+    const blob = new Blob([JSON.stringify(model)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    download(url, 'city.json');
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+  const cmpFile = document.getElementById('compare-file');
+  const cmpCount = document.getElementById('compare-count');
+  document.getElementById('compare-btn').onclick = () => cmpFile.click();
+  cmpFile.onchange = async () => {
+    const f = cmpFile.files && cmpFile.files[0];
+    if (!f) return;
+    try {
+      const baseline = JSON.parse(await f.text());
+      const { base, stats } = diffAgainst(model, baseline);
+      city.applyDiff(base);
+      cmpCount.textContent = `${stats.added} new · ${stats.changed} changed · ${stats.removed} removed · LOC ${stats.locDelta >= 0 ? '+' : ''}${stats.locDelta}`;
+    } catch (err) {
+      cmpCount.textContent = `could not read baseline (${err.message})`;
+    }
+    cmpFile.value = '';
+  };
+  document.getElementById('compare-clear').onclick = () => {
+    city.clearDiff(); cmpCount.textContent = '';
+  };
 
   document.getElementById('auto-rotate').onclick = (e) => {
     controls.autoRotate = !controls.autoRotate;

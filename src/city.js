@@ -329,6 +329,43 @@ export class City {
     }
   }
 
+  // Compare mode: tint by LOC delta against a baseline model (red grew,
+  // green shrank, grey unchanged, brighter green = new).
+  applyDiff(baseMap) {
+    this.diffActive = true;
+    for (const [id, e] of this.byBuilding) {
+      const prev = baseMap.get(id);
+      let col = '#22c55e';
+      let inten = 0.8;
+      let dim = false;
+      if (prev) {
+        const dl = (e.building.loc || 0) - (prev.loc || 0);
+        col = dl > 0 ? '#ef4444' : dl < 0 ? '#22c55e' : '#64748b';
+        dim = dl === 0;
+        inten = dim ? 0.12 : 0.8;
+      }
+      for (const m of e.materials) {
+        m.emissive.set(col);
+        m.emissiveIntensity = inten;
+        m.transparent = dim;
+        m.opacity = dim ? 0.35 : 1;
+      }
+    }
+  }
+
+  clearDiff() {
+    this.diffActive = false;
+    this.querySet = null;
+    for (const [, e] of this.byBuilding) {
+      for (const m of e.materials) {
+        m.emissive.copy(m.userData.baseEmissive);
+        m.emissiveIntensity = m.userData.baseIntensity;
+        m.transparent = false;
+        m.opacity = 1;
+      }
+    }
+  }
+
   // Tagging (paper's colour + transparency): dim everything except `ids`, which
   // are tinted. Pass null to clear.
   highlightSubset(ids) {

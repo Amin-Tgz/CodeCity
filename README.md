@@ -125,6 +125,9 @@ and applies to any codebase:
 - **Git-history time-lapse** — when built with `--history`, a timeline in the
   control panel scrubs (or plays) the city growing commit by commit: buildings
   appear as their files are first added and grow toward their final height.
+- **Export / compare** — download the current view as **PNG** or the model as
+  **JSON**; load another `city.json` as a baseline to tint buildings by LOC
+  delta (red grew, green shrank, grey unchanged, bright green new).
 - **Auto-orbit** (⟳) gives a hands-free "city tour" camera.
 - **Help tab** (the **?** button, or press <kbd>?</kbd>) explains the metrics
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
