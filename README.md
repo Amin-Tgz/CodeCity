@@ -133,6 +133,10 @@ and applies to any codebase:
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
   analyse a codebase with the tool.
 
+**Accessibility** - the **☰** button opens a filterable list of every building
+(keyboard-focusable, ARIA-labelled); <kbd>[</kbd> / <kbd>]</kbd> step through
+buildings in name order.
+
 **Query / tag** - the query box (`type:class`, `loc>200`, `lang:ts`,
 `district:backend`, or a bare word matching name/file; terms AND-combine)
 tints every matching building and dims the rest, and queries can be saved.

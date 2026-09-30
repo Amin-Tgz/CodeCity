@@ -32,6 +32,7 @@
     <div id="stats" class="stats"></div>
 
     <div class="top-actions">
+      <button id="list-btn" class="icon-btn-lg" title="building list (accessibility)" aria-label="toggle building list">☰</button>
       <button id="auto-rotate" class="icon-btn-lg" title="auto-orbit">⟳</button>
       <button id="reset-view" class="icon-btn-lg" title="reset view">⌂</button>
       <button id="help-btn" class="icon-btn-lg" title="help (?)">?</button>
@@ -264,6 +265,8 @@
             <tr><td>Right-drag</td><td>pan</td></tr>
             <tr><td>Click</td><td>select a building → details (+ members)</td></tr>
             <tr><td>query box</td><td>tag matching buildings, dim the rest (<code>loc&gt;200</code>, <code>type:class</code>…)</td></tr>
+            <tr><td>☰</td><td>building list (keyboard / screen readers)</td></tr>
+            <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>select previous / next building</td></tr>
             <tr><td>⟳</td><td>auto-orbit tour</td></tr>
             <tr><td>⌂</td><td>reset the camera</td></tr>
             <tr><td>?</td><td>open / close this help</td></tr>
@@ -277,6 +280,8 @@
       </div>
     </div>
   </div>
+
+  <div id="citylist" role="region" aria-label="Buildings list"></div>
 
   <div id="infra"></div>
 
