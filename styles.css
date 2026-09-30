@@ -556,8 +556,10 @@ button { font: inherit; cursor: pointer; }
   box-shadow: var(--shadow);
   z-index: 24;
 }
-.infra-head { font-size: 12px; margin-bottom: 8px; }
+.infra-head { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 8px; }
 .infra-head .muted { color: var(--muted); }
+.infra-live { margin-inline-start: auto; font-size: 11px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.infra-live input { accent-color: var(--accent); }
 .infra-gauges { display: flex; gap: 20px; }
 .gauge { flex: 1; }
 .gauge-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }

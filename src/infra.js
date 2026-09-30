@@ -37,7 +37,9 @@ export function renderInfraHUD(infra) {
     </div>`).join('');
   el.innerHTML = `
     <div class="infra-head"><b>Infrastructure</b>
-      <span class="muted">· ${infra.services.length} components detected (total)</span></div>
+      <span class="muted">· ${infra.services.length} components detected (total)</span>
+      <label class="infra-live" title="poll the optional local metrics agent">
+        <input type="checkbox" id="infra-live" /> live</label></div>
     <div class="infra-gauges">
       ${gauge('CPU', infra.cpu, '#38bdf8')}
       ${gauge('RAM', infra.ram, '#f59e0b')}
