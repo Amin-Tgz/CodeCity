@@ -14,6 +14,9 @@ const SELECT = new THREE.Color('#f8fafc');
 // them (with the default treemap packing the median gap is only ~0.9u).
 const BODY_FACTOR = 0.6;
 const BODY_MARGIN = 0.5;
+// nested packages sit on progressively raised platform terraces (article
+// topology): a district's elevation follows its package nesting depth.
+const PLATFORM_STEP = 1.2;
 
 export class City {
   constructor(model, scene, { onHover } = {}) {
@@ -152,10 +155,11 @@ export class City {
     const cMax = Math.max(1, ...cVals);
     const cMin = Math.min(...cVals);
 
+    const depthById = new Map(this.model.districts.map((d) => [d.id, d.depth || 0]));
     const districtAgg = new Map();
     for (const b of buildings) {
       const d = b.district;
-      if (!districtAgg.has(d)) districtAgg.set(d, { key: d, value: 0, buildings: [] });
+      if (!districtAgg.has(d)) districtAgg.set(d, { key: d, value: 0, buildings: [], depth: depthById.get(d) || 0 });
       const a = districtAgg.get(d);
       a.value += footValue(b);
       a.buildings.push(b);
@@ -166,17 +170,18 @@ export class City {
     const placedDistricts = treemap(districts, { x: 0, y: 0, w: side, h: side });
 
     placedDistricts.forEach((pd, di) => {
+      const altitude = (pd.item.depth || 0) * PLATFORM_STEP;
       const dColor = districtHue(di, pd.item.depth || 0);
       const inner = inset(pd.rect, Math.min(2.6, Math.min(pd.rect.w, pd.rect.h) * 0.07));
 
       if (inner.w > 1 && inner.h > 1) {
-        // curb (slightly larger, darker) + plate
+        // curb (slightly larger, darker) + plate, raised to this package's tier
         const curbGeo = new THREE.BoxGeometry(inner.w + 1.0, 0.35, inner.h + 1.0);
         const curbMat = new THREE.MeshStandardMaterial({
           color: dColor.clone().multiplyScalar(0.5), roughness: 1, metalness: 0,
         });
         const curb = new THREE.Mesh(curbGeo, curbMat);
-        curb.position.set(inner.x + inner.w / 2, 0.18, inner.y + inner.h / 2);
+        curb.position.set(inner.x + inner.w / 2, altitude + 0.18, inner.y + inner.h / 2);
         curb.receiveShadow = true;
         curb.userData.district = pd.item.key;
         this.platesGroup.add(curb);
@@ -188,7 +193,7 @@ export class City {
           transparent: true, opacity: 0.92,
         });
         const plate = new THREE.Mesh(plateGeo, plateMat);
-        plate.position.set(inner.x + inner.w / 2, 0.42, inner.y + inner.h / 2);
+        plate.position.set(inner.x + inner.w / 2, altitude + 0.42, inner.y + inner.h / 2);
         plate.receiveShadow = true;
         plate.userData.district = pd.item.key;
         this.platesGroup.add(plate);
@@ -203,7 +208,9 @@ export class City {
         buildingArea
       );
       for (const { item, rect } of placed) {
-        this._addBuilding(item.b, rect, { cKey, cMin, cMax, heightBase: heightBase(item.b), flat: mode !== 'linear' });
+        this._addBuilding(item.b, rect, {
+          cKey, cMin, cMax, altitude, heightBase: heightBase(item.b), flat: mode !== 'linear',
+        });
       }
     });
 
@@ -220,7 +227,7 @@ export class City {
     }
   }
 
-  _addBuilding(b, rect, { cKey, cMin, cMax, heightBase, flat }) {
+  _addBuilding(b, rect, { cKey, cMin, cMax, heightBase, flat, altitude = 0 }) {
     const group = new THREE.Group();
 
     const w = Math.max(rect.w * BODY_FACTOR - 2 * BODY_MARGIN, 0.5);
@@ -258,7 +265,7 @@ export class City {
     this._extraMats.push(matSimple);
 
     const body = new THREE.Mesh(geo, mat);
-    body.position.y = 0.62 + h / 2;
+    body.position.y = 0.62 + altitude + h / 2;
     body.castShadow = true;
     body.receiveShadow = true;
     body.userData.buildingId = b.id;
@@ -269,9 +276,9 @@ export class City {
     this.buildingGroup.add(group);
     this.byBuilding.set(b.id, {
       group, materials: [mat, matSimple], building: b,
-      body, matFull: mat, matSimple, far: false,
-      center: new THREE.Vector3(rect.x + rect.w / 2, 0.62 + h / 2, rect.y + rect.h / 2),
-      ground: new THREE.Vector3(rect.x + rect.w / 2, STREET_Y, rect.y + rect.h / 2),
+      body, matFull: mat, matSimple, far: false, altitude,
+      center: new THREE.Vector3(rect.x + rect.w / 2, 0.62 + altitude + h / 2, rect.y + rect.h / 2),
+      ground: new THREE.Vector3(rect.x + rect.w / 2, altitude + STREET_Y, rect.y + rect.h / 2),
       half: { w: w / 2, d: d / 2 },
     });
     this.buildingMeshes.set(b.id, group);

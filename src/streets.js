@@ -49,10 +49,10 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 // Orthogonal connector from a building rectangle to a grid point `g`:
 // [point on the face, optional elbow, g] - all three axis-aligned.
-function connectOrtho(center, half, g) {
+function connectOrtho(center, half, g, y = STREET_Y) {
   const cx = clamp(g.x, center.x - half.w, center.x + half.w);
   const cz = clamp(g.z, center.z - half.d, center.z + half.d);
-  const cp = new THREE.Vector3(cx, STREET_Y, cz);
+  const cp = new THREE.Vector3(cx, y, cz);
   const dx = Math.abs(g.x - cx);
   const dz = Math.abs(g.z - cz);
   if (dx < 1e-3 || dz < 1e-3) return [cp, g.clone()];
@@ -60,8 +60,8 @@ function connectOrtho(center, half, g) {
     p.x < center.x - half.w - 1e-3 || p.x > center.x + half.w + 1e-3
     || p.z < center.z - half.d - 1e-3 || p.z > center.z + half.d + 1e-3
   );
-  const e1 = new THREE.Vector3(g.x, STREET_Y, cz);
-  const elbow = outside(e1) ? e1 : new THREE.Vector3(cx, STREET_Y, g.z);
+  const e1 = new THREE.Vector3(g.x, y, cz);
+  const elbow = outside(e1) ? e1 : new THREE.Vector3(cx, y, g.z);
   return [cp, elbow, g.clone()];
 }
 
@@ -275,9 +275,12 @@ export class StreetNetwork {
       if (!start || !goal) continue;
       const mid = this._route(grid, start, goal);
       if (!mid || !mid.length) continue;
+      // run the lane at the higher platform level of the two buildings
+      const level = Math.max(a.y, b.y);
+      for (const p of mid) p.y = level;
       // orthogonal connectors from each building face to the first/last cells
-      const head = connectOrtho(a, ea.half, mid[0]);
-      const tail = connectOrtho(b, eb.half, mid[mid.length - 1]);
+      const head = connectOrtho(a, ea.half, mid[0], level);
+      const tail = connectOrtho(b, eb.half, mid[mid.length - 1], level);
       const pts = [...head];
       for (let n = 1; n < mid.length; n++) pts.push(mid[n]);
       for (let n = tail.length - 2; n >= 0; n--) pts.push(tail[n]);
@@ -303,9 +306,11 @@ export class StreetNetwork {
     const len = dir.length();
     if (len < 0.8) return null;
     dir.divideScalar(len);
+    const level = Math.max(a.y, b.y);
     const p0 = a.clone().addScaledVector(dir, Math.min(boxExit(ea.half, dir), len * 0.45));
     const p1 = b.clone().addScaledVector(dir, -Math.min(boxExit(eb.half, dir), len * 0.45));
-    const elbow = new THREE.Vector3(p1.x, STREET_Y, p0.z);
+    p0.y = level; p1.y = level;
+    const elbow = new THREE.Vector3(p1.x, level, p0.z);
     return { tier: t, pts: [p0, elbow, p1] };
   }
 
@@ -379,15 +384,16 @@ export class StreetNetwork {
       const uz = dz / L;
       const nx = -uz;
       const nz = ux;
+      const y = p0.y;
       // extend each end by hw so corners are filled by the overlap
-      const a = new THREE.Vector3(p0.x - ux * hw, STREET_Y, p0.z - uz * hw);
-      const b = new THREE.Vector3(p1.x + ux * hw, STREET_Y, p1.z + uz * hw);
+      const a = new THREE.Vector3(p0.x - ux * hw, y, p0.z - uz * hw);
+      const b = new THREE.Vector3(p1.x + ux * hw, y, p1.z + uz * hw);
       const base = bk.count;
       bk.pos.push(
-        a.x + nx * hw, STREET_Y, a.z + nz * hw,
-        b.x + nx * hw, STREET_Y, b.z + nz * hw,
-        b.x - nx * hw, STREET_Y, b.z - nz * hw,
-        a.x - nx * hw, STREET_Y, a.z - nz * hw,
+        a.x + nx * hw, y, a.z + nz * hw,
+        b.x + nx * hw, y, b.z + nz * hw,
+        b.x - nx * hw, y, b.z - nz * hw,
+        a.x - nx * hw, y, a.z - nz * hw,
       );
       const u0 = acc / TILE;
       const u1 = (acc + L + hw) / TILE;
@@ -411,7 +417,7 @@ export class StreetNetwork {
       for (let k = 0; k < count; k++) {
         const seed = p.a + p.b + k;
         walkers.push({
-          pts, cum, total,
+          pts, cum, total, baseY: pts[0].y,
           d: this.hash01(seed) * total,
           speed: 1.8 + 2.2 * this.hash01(seed + 's'),
           dir: (k % 2) ? -1 : 1,
@@ -502,14 +508,13 @@ export class StreetNetwork {
   _stepWalkers(list, mesh, dt) {
     if (!mesh || !list.length) return;
     const m = new THREE.Matrix4();
-    const y = STREET_Y + 0.3;
     for (let i = 0; i < list.length; i++) {
       const w = list[i];
       w.d += dt * w.speed * w.dir;
       if (w.d >= w.total) { w.d = w.total; w.dir = -1; }
       else if (w.d <= 0) { w.d = 0; w.dir = 1; }
       const p = this._pointAt(w);
-      m.makeTranslation(p.x, y, p.z);
+      m.makeTranslation(p.x, (w.baseY || STREET_Y) + 0.3, p.z);
       mesh.setMatrixAt(i, m);
     }
     mesh.instanceMatrix.needsUpdate = true;

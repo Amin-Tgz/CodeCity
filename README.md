@@ -106,7 +106,8 @@ and applies to any codebase:
 - **Buildings** are plain boxes with a procedurally generated **window
   facade**; height varies per building (stable hash) so equal-metric modules
   are not uniform slabs. The scene is fixed **daytime** (no day/night cycle).
-- **Districts** are raised plates with a curb. **Streets** are dependency
+- **Districts** are raised plates with a curb, and **nested packages** sit on
+  progressively higher terraces (the paper's package topology). **Streets** are dependency
   edges routed on the ground as **orthogonal, grid-aligned lanes** that avoid
   every building footprint (buildings are shrunk + margined to leave
   corridors). Wide **roads** (yellow lane lines) carry the heaviest links,
