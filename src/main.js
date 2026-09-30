@@ -96,11 +96,12 @@ function wireUI(model) {
   const selH = document.getElementById('sel-height');
   const selF = document.getElementById('sel-footprint');
   const selC = document.getElementById('sel-color');
+  const selM = document.getElementById('sel-mode');
   const applyMapping = () => {
-    city.setMapping({ height: selH.value, footprint: selF.value, color: selC.value });
+    city.setMapping({ height: selH.value, footprint: selF.value, color: selC.value, mode: selM.value });
     UI.renderLegend(selC.value);
   };
-  selH.onchange = selF.onchange = selC.onchange = applyMapping;
+  selH.onchange = selF.onchange = selC.onchange = selM.onchange = applyMapping;
 
   const selStreets = document.getElementById('sel-streets');
   selStreets.onchange = (e) => city.setStreetMode(e.target.value);

@@ -78,6 +78,12 @@
         <option value="noa">attributes (NOA)</option>
         <option value="deps">dependencies</option>
       </select>
+      <label for="sel-mode">mapping</label>
+      <select id="sel-mode">
+        <option value="boxplot" selected>boxplot (5 sizes)</option>
+        <option value="linear">linear</option>
+        <option value="threshold">threshold</option>
+      </select>
     </div>
 
     <div class="panel-title">Layers</div>
@@ -156,6 +162,13 @@
             </tr>
           </tbody>
         </table>
+
+        <p><b>Mapping</b> — the <i>mapping</i> dropdown chooses how a metric value
+        becomes a size. <b>boxplot</b> (default) is the paper's approach: boundary
+        values come from the data's quartiles/whiskers, so buildings take one of
+        <b>5 balanced sizes</b> (very small → very tall) instead of a long tail of
+        near-identical slabs. <b>threshold</b> uses 5 fixed bands, and
+        <b>linear</b> maps the raw value continuously.</p>
 
         <h3>On “NOC”</h3>
         <p><b>NOC</b> is a classic OO metric for <b>Number Of Classes</b> (and,

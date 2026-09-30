@@ -42,9 +42,75 @@ export function heatColor(t) {
   return rampColor(t, HEAT);
 }
 
-export function districtHue(i, depth) {
+export function districtHue(i, depth = 0) {
   const hue = ((i * 0.618033988749895) + depth * 0.07) % 1;
-  return new THREE.Color().setHSL(hue, 0.42, 0.30);
+  // nesting depth (paper: package level) also drives saturation + lightness
+  const sat = clamp01(0.30 + depth * 0.08);
+  const light = clamp01(0.22 + depth * 0.05);
+  return new THREE.Color().setHSL(hue, sat, light);
+}
+
+// ---------------------------------------------------------------------------
+// Categorical mapping (Wettel & Lanza): buildings take one of 5 discrete sizes
+// so the city stays readable instead of one giant building dwarfing the rest.
+// ---------------------------------------------------------------------------
+
+// The two variants from the paper.
+export const MAPPING_MODES = ['boxplot', 'threshold', 'linear'];
+
+const CAT_HEIGHTS = [6, 13, 22, 34, 48];   // very small .. very tall
+const CAT_FOOT = [1, 2, 4, 7, 12];         // treemap weights, very small .. very tall
+
+export function categoryHeights() { return CAT_HEIGHTS; }
+export function categoryFootprints() { return CAT_FOOT; }
+
+// Boxplot statistics (Q1/median/Q3 + Tukey whiskers) over a metric's values.
+export function boxplot(values) {
+  const v = values.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
+  if (!v.length) return { q1: 0, med: 0, q3: 0, lower: 0, upper: 0, min: 0, max: 0 };
+  const q = (p) => {
+    const i = (v.length - 1) * p;
+    const lo = Math.floor(i); const hi = Math.ceil(i);
+    return v[lo] + (v[hi] - v[lo]) * (i - lo);
+  };
+  const q1 = q(0.25); const med = q(0.5); const q3 = q(0.75);
+  const iqr = q3 - q1;
+  const loFence = q1 - 1.5 * iqr;
+  const hiFence = q3 + 1.5 * iqr;
+  let lower = v[0];
+  for (const x of v) { if (x >= loFence) { lower = x; break; } }
+  let upper = v[v.length - 1];
+  for (let i = v.length - 1; i >= 0; i--) { if (v[i] <= hiFence) { upper = v[i]; break; } }
+  return { q1, med, q3, lower, upper, min: v[0], max: v[v.length - 1] };
+}
+
+export function boxplotCategory(x, s) {
+  if (x < s.lower) return 0;
+  if (x < s.q1) return 1;
+  if (x < s.q3) return 2;
+  if (x <= s.upper) return 3;
+  return 4;
+}
+
+// Empirically-set thresholds (approximate, from Lanza & Marinescu) for the
+// threshold-based variant.
+const BOUNDS = {
+  nom: [5, 10, 20, 40],
+  noa: [5, 10, 20, 40],
+  loc: [100, 300, 700, 1500],
+  deps: [5, 15, 40, 100],
+};
+
+export function thresholdCategory(x, key) {
+  const b = BOUNDS[key] || BOUNDS.nom;
+  let c = 0;
+  for (const t of b) { if (x >= t) c++; }
+  return Math.min(c, 4);
+}
+
+// category (0..4) for a building's metric under the chosen mapping mode
+export function categoryFor(value, stats, mode, key) {
+  return mode === 'boxplot' ? boxplotCategory(value, stats) : thresholdCategory(value, key);
 }
 
 export function clamp01(v) {

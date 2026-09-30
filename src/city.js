@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { treemap, inset } from './layout.js';
 import {
   METRICS, locColor, heatColor, districtHue, norm, heightFor, hash01,
+  boxplot, categoryFor, categoryHeights, categoryFootprints,
 } from './metrics.js';
 import { facadeTextures, applyWindowUV } from './textures.js';
 import { StreetNetwork, STREET_Y } from './streets.js';
@@ -19,7 +20,7 @@ export class City {
     this.model = model;
     this.scene = scene;
     this.onHover = onHover;
-    this.mapping = { height: 'nom', footprint: 'noa', color: 'loc' };
+    this.mapping = { height: 'nom', footprint: 'noa', color: 'loc', mode: 'boxplot' };
     this.raycaster = new THREE.Raycaster();
 
     this.root = new THREE.Group();
@@ -130,8 +131,23 @@ export class City {
     const hKey = this.mapping.height;
     const fKey = this.mapping.footprint;
     const cKey = this.mapping.color;
+    const mode = this.mapping.mode || 'boxplot';
 
-    const hMax = Math.max(1, ...buildings.map((b) => METRICS[hKey].get(b)));
+    const hVals = buildings.map((b) => METRICS[hKey].get(b));
+    const fVals = buildings.map((b) => METRICS[fKey].get(b));
+    const hStats = boxplot(hVals);
+    const fStats = boxplot(fVals);
+    const hCats = categoryHeights();
+    const fCats = categoryFootprints();
+    const hMax = Math.max(1, ...hVals);
+    // footprint treemap weight + height base, per the chosen mapping mode
+    const footValue = (b) => (mode === 'linear'
+      ? Math.max(METRICS[fKey].get(b), 1)
+      : fCats[categoryFor(METRICS[fKey].get(b), fStats, mode, fKey)]);
+    const heightBase = (b) => (mode === 'linear'
+      ? heightFor(METRICS[hKey].get(b), hMax)
+      : hCats[categoryFor(METRICS[hKey].get(b), hStats, mode, hKey)]);
+
     const cVals = buildings.map((b) => METRICS[cKey].get(b));
     const cMax = Math.max(1, ...cVals);
     const cMin = Math.min(...cVals);
@@ -141,7 +157,7 @@ export class City {
       const d = b.district;
       if (!districtAgg.has(d)) districtAgg.set(d, { key: d, value: 0, buildings: [] });
       const a = districtAgg.get(d);
-      a.value += Math.max(METRICS[fKey].get(b), 1);
+      a.value += footValue(b);
       a.buildings.push(b);
     }
     const districts = [...districtAgg.values()].sort((a, b2) => a.key.localeCompare(b2.key));
@@ -150,7 +166,7 @@ export class City {
     const placedDistricts = treemap(districts, { x: 0, y: 0, w: side, h: side });
 
     placedDistricts.forEach((pd, di) => {
-      const dColor = districtHue(di, 1);
+      const dColor = districtHue(di, pd.item.depth || 0);
       const inner = inset(pd.rect, Math.min(2.6, Math.min(pd.rect.w, pd.rect.h) * 0.07));
 
       if (inner.w > 1 && inner.h > 1) {
@@ -183,11 +199,11 @@ export class City {
       const buildingArea = inset(inner, pad);
       if (buildingArea.w <= 0.5 || buildingArea.h <= 0.5) return;
       const placed = treemap(
-        pd.item.buildings.map((b) => ({ value: Math.max(METRICS[fKey].get(b), 1), b })),
+        pd.item.buildings.map((b) => ({ value: footValue(b), b })),
         buildingArea
       );
       for (const { item, rect } of placed) {
-        this._addBuilding(item.b, rect, { hKey, cKey, hMax, cMin, cMax });
+        this._addBuilding(item.b, rect, { cKey, cMin, cMax, heightBase: heightBase(item.b), flat: mode !== 'linear' });
       }
     });
 
@@ -204,13 +220,13 @@ export class City {
     }
   }
 
-  _addBuilding(b, rect, { hKey, cKey, hMax, cMin, cMax }) {
+  _addBuilding(b, rect, { cKey, cMin, cMax, heightBase, flat }) {
     const group = new THREE.Group();
 
     const w = Math.max(rect.w * BODY_FACTOR - 2 * BODY_MARGIN, 0.5);
     const d = Math.max(rect.h * BODY_FACTOR - 2 * BODY_MARGIN, 0.5);
-    const hVar = 0.86 + 0.28 * hash01(b.id + 'h');
-    const h = Math.max(3.2, heightFor(METRICS[hKey].get(b), hMax) * hVar);
+    const hVar = flat ? 1 : 0.86 + 0.28 * hash01(b.id + 'h');
+    const h = Math.max(3.2, heightBase * hVar);
 
     const t = norm(METRICS[cKey].get(b), cMin, cMax);
     const color = cKey === 'loc' ? locColor(t) : heatColor(t);
