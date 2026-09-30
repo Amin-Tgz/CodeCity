@@ -64,7 +64,8 @@ function buildWorld(side) {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  grid = new THREE.GridHelper(side * 1.5, 30, 0x2b3852, 0x1b2438);
+  // lines every 4u (5 routing cells) so the street grid reads as aligned
+  grid = new THREE.GridHelper(side * 1.5, Math.max(4, Math.round((side * 1.5) / 4)), 0x2b3852, 0x1b2438);
   grid.position.y = 0.03;
   scene.add(grid);
 }

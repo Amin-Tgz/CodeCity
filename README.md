@@ -107,10 +107,11 @@ and applies to any codebase:
   facade**; height varies per building (stable hash) so equal-metric modules
   are not uniform slabs. The scene is fixed **daytime** (no day/night cycle).
 - **Districts** are raised plates with a curb. **Streets** are dependency
-  edges laid on the ground: wide **roads** (yellow lane lines) for the heaviest
-  links, narrower **streets / alleys** (white centre line) for the rest, with
-  **people** walking each street - their number matches the connections it
-  carries.
+  edges routed on the ground as **orthogonal, grid-aligned lanes** that avoid
+  every building footprint (buildings are shrunk + margined to leave
+  corridors). Wide **roads** (yellow lane lines) carry the heaviest links,
+  narrower **streets / alleys** (white centre line) the rest, and **people**
+  walk each lane - their number matches the connections it carries.
 - **Auto-orbit** (⟳) gives a hands-free "city tour" camera.
 - **Help tab** (the **?** button, or press <kbd>?</kbd>) explains the metrics
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
