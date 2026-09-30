@@ -117,7 +117,10 @@ and applies to any codebase:
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
   analyse a codebase with the tool.
 
-Layers can be toggled live: **streets**, **grid**.
+Street modes: **all**, **selected building only** (relationship on demand -
+picking a building shows just its incident lanes), or **off**; plus a **grid**
+toggle. Distant buildings drop their window facade and shadows (level of
+detail) to keep large cities fast.
 
 The colour ramp runs slate → teal → gold → crimson so low- and high-LOC
 buildings stay visually distinct.

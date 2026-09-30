@@ -99,11 +99,13 @@ function wireUI(model) {
   const applyMapping = () => {
     city.setMapping({ height: selH.value, footprint: selF.value, color: selC.value });
     UI.renderLegend(selC.value);
-    city.setRoadsVisible(document.getElementById('chk-roads').checked);
   };
   selH.onchange = selF.onchange = selC.onchange = applyMapping;
 
-  document.getElementById('chk-roads').onchange = (e) => city.setRoadsVisible(e.target.checked);
+  const selStreets = document.getElementById('sel-streets');
+  selStreets.onchange = (e) => city.setStreetMode(e.target.value);
+  city.setStreetMode(selStreets.value);
+
   document.getElementById('chk-grid').onchange = (e) => { grid.visible = e.target.checked; };
 
   document.getElementById('auto-rotate').onclick = (e) => {
@@ -162,6 +164,7 @@ canvas.addEventListener('pointermove', (e) => {
   pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
   const hit = city.hover(pointer, camera);
+  if (city.streetMode === 'selected') city.setFocusBuilding(hit ? hit.userData.buildingId : null);
   UI.showTooltip(hit ? city.byBuilding.get(hit.userData.buildingId).building : null, e.clientX, e.clientY);
 });
 canvas.addEventListener('pointerleave', () => UI.showTooltip(null));
@@ -175,6 +178,7 @@ canvas.addEventListener('pointerup', (e) => {
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
   const hit = city.hover(pointer, camera);
   const b = hit ? city.select(hit) : null;
+  city.setFocusBuilding(b ? b.id : null);
   UI.renderDetails(b);
 });
 
@@ -197,6 +201,8 @@ async function boot() {
   city = new City(model, scene, {});
   window.__codecity = city;
   groundSide = city.groundSide;
+  city.camera = camera;
+  city.setLodDistance(groundSide * 0.5);
   buildWorld(groundSide);
   resetView();
   controls.update();
@@ -208,7 +214,11 @@ async function boot() {
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     controls.update();
-    if (city) city.update(dt);
+    if (city) {
+      // detailed buildings near the camera target, low-detail ones far away
+      city.setLodDistance(camera.position.distanceTo(controls.target) * 0.75);
+      city.update(dt);
+    }
     renderer.render(scene, camera);
   });
 }

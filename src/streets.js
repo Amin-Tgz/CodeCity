@@ -110,9 +110,15 @@ export class StreetNetwork {
     this.hash01 = hash01;
     this.group = new THREE.Group();
     this.walkerGroup = new THREE.Group();
+    this.focusGroup = new THREE.Group();
     this.walkers = [];
     this.walkerMesh = null;
+    this.focusWalkers = [];
+    this.focusWalkerMesh = null;
+    this.mode = 'all';      // all | selected | off
+    this.focusId = null;
     this._mats = [];
+    this._focusMats = [];
     this._tex = {
       road2: roadTexture(2),
       road4: roadTexture(4),
@@ -305,17 +311,34 @@ export class StreetNetwork {
 
   build() {
     const grids = this._grids();
-    const buckets = new Map();
     const paths = [];
     for (const r of this.model.roads) {
       const idx = tierIndexFor(r.weight);
       const res = this._routeEdge(r, grids, idx);
       if (!res) continue;
-      const tname = res.tier.name;
-      if (!buckets.has(tname)) buckets.set(tname, { tier: res.tier, pos: [], uv: [], idx: [], count: 0 });
-      const bk = buckets.get(tname);
-      this._emitQuads(bk, res.pts, res.tier.width);
-      paths.push({ pts: res.pts, width: res.tier.width, weight: r.weight, a: r.a, b: r.b });
+      paths.push({ pts: res.pts, width: res.tier.width, tier: res.tier.name, weight: r.weight, a: r.a, b: r.b });
+    }
+    this.paths = paths;
+    // building id -> incident path indices (relationship-on-demand)
+    this._index = new Map();
+    paths.forEach((p, i) => {
+      for (const id of [p.a, p.b]) {
+        if (!this._index.has(id)) this._index.set(id, []);
+        this._index.get(id).push(i);
+      }
+    });
+    this._meshFromPaths(paths, this.group, this._mats);
+    this._buildWalkers(paths);
+    this._refreshVisibility();
+    this._built = true;
+  }
+
+  // Merge a set of paths into per-tier ribbon meshes added to `group`.
+  _meshFromPaths(paths, group, matsArr) {
+    const buckets = new Map();
+    for (const p of paths) {
+      if (!buckets.has(p.tier)) buckets.set(p.tier, { pos: [], uv: [], idx: [], count: 0 });
+      this._emitQuads(buckets.get(p.tier), p.pts, p.width);
     }
     for (const [name, bk] of buckets) {
       if (!bk.count) continue;
@@ -335,12 +358,10 @@ export class StreetNetwork {
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.receiveShadow = true;
-      this.group.add(mesh);
-      this._mats.push(mat);
+      group.add(mesh);
+      matsArr.push(mat);
     }
-    this.paths = paths;
-    this._buildWalkers(paths);
-    this._built = true;
+    return group;
   }
 
   _emitQuads(bk, pts, width) {
@@ -377,7 +398,7 @@ export class StreetNetwork {
     }
   }
 
-  _buildWalkers(paths) {
+  _makeWalkerMesh(paths) {
     const walkers = [];
     for (const p of paths) {
       const pts = p.pts;
@@ -398,7 +419,7 @@ export class StreetNetwork {
         });
       }
     }
-    if (!walkers.length) return;
+    if (!walkers.length) return null;
     const geo = new THREE.CapsuleGeometry(0.11, 0.34, 4, 8);
     const mat = new THREE.MeshStandardMaterial({
       color: '#f4d9b0', emissive: new THREE.Color('#ffbf73'), emissiveIntensity: 0.35,
@@ -409,10 +430,55 @@ export class StreetNetwork {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     mesh.frustumCulled = false;
-    this.walkerGroup.add(mesh);
-    this.walkerMesh = mesh;
-    this.walkers = walkers;
-    this.update(0);
+    return { mesh, walkers };
+  }
+
+  _buildWalkers(paths) {
+    const wm = this._makeWalkerMesh(paths);
+    if (!wm) return;
+    this.walkerGroup.add(wm.mesh);
+    this.walkerMesh = wm.mesh;
+    this.walkers = wm.walkers;
+    this._stepWalkers(this.walkers, this.walkerMesh, 0);
+  }
+
+  // --- relationship-on-demand ---------------------------------------------
+  setMode(mode) {
+    this.mode = mode;
+    this._refreshVisibility();
+  }
+
+  setFocus(id) {
+    id = id || null;
+    if (id === this.focusId && this._built) { this._refreshVisibility(); return; }
+    this.focusId = id;
+    for (const c of [...this.focusGroup.children]) {
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) c.material.dispose();
+    }
+    this.focusGroup.clear();
+    this._focusMats = [];
+    this.focusWalkers = [];
+    this.focusWalkerMesh = null;
+    if (this.focusId && this._index && this._index.has(this.focusId)) {
+      const subset = this._index.get(this.focusId).map((i) => this.paths[i]);
+      this._meshFromPaths(subset, this.focusGroup, this._focusMats);
+      const wm = this._makeWalkerMesh(subset);
+      if (wm) {
+        this.focusGroup.add(wm.mesh);
+        this.focusWalkerMesh = wm.mesh;
+        this.focusWalkers = wm.walkers;
+        this._stepWalkers(this.focusWalkers, this.focusWalkerMesh, 0);
+      }
+    }
+    this._refreshVisibility();
+  }
+
+  _refreshVisibility() {
+    const showAll = this.mode === 'all';
+    this.group.visible = showAll;
+    this.walkerGroup.visible = showAll;
+    this.focusGroup.visible = this.mode === 'selected' && !!this.focusId;
   }
 
   _pointAt(w) {
@@ -433,36 +499,44 @@ export class StreetNetwork {
     };
   }
 
-  update(dt) {
-    if (!this.walkerMesh || !this.walkers.length) return;
+  _stepWalkers(list, mesh, dt) {
+    if (!mesh || !list.length) return;
     const m = new THREE.Matrix4();
     const y = STREET_Y + 0.3;
-    for (let i = 0; i < this.walkers.length; i++) {
-      const w = this.walkers[i];
+    for (let i = 0; i < list.length; i++) {
+      const w = list[i];
       w.d += dt * w.speed * w.dir;
       if (w.d >= w.total) { w.d = w.total; w.dir = -1; }
       else if (w.d <= 0) { w.d = 0; w.dir = 1; }
       const p = this._pointAt(w);
       m.makeTranslation(p.x, y, p.z);
-      this.walkerMesh.setMatrixAt(i, m);
+      mesh.setMatrixAt(i, m);
     }
-    this.walkerMesh.instanceMatrix.needsUpdate = true;
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  update(dt) {
+    if (this.walkerGroup.visible) this._stepWalkers(this.walkers, this.walkerMesh, dt);
+    if (this.focusGroup.visible) this._stepWalkers(this.focusWalkers, this.focusWalkerMesh, dt);
   }
 
   setVisible(v) {
-    this.group.visible = v;
-    this.walkerGroup.visible = v;
+    this._refreshVisibility();
   }
 
   dispose() {
-    for (const child of [...this.group.children, ...this.walkerGroup.children]) {
+    for (const child of [...this.group.children, ...this.walkerGroup.children, ...this.focusGroup.children]) {
       if (child.geometry) child.geometry.dispose();
       if (child.material) child.material.dispose();
     }
     this.group.clear();
     this.walkerGroup.clear();
+    this.focusGroup.clear();
     this.walkerMesh = null;
+    this.focusWalkerMesh = null;
     this.walkers = [];
+    this.focusWalkers = [];
     this._mats = [];
+    this._focusMats = [];
   }
 }

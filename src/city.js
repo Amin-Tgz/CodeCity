@@ -36,6 +36,12 @@ export class City {
     this.hoveredId = null;
     this._facade = facadeTextures();
     this.street = null;
+    this.streetMode = 'all';
+    this.focusId = null;
+    this.camera = null;
+    this._lodDist2 = Infinity;
+    this._extraMats = [];
+    this._lodAcc = 0;
 
     this._computeDegrees();
     this.rebuild();
@@ -56,14 +62,40 @@ export class City {
     this.rebuild();
   }
 
-  setRoadsVisible(v) {
-    this.roadsVisible = v;
-    if (this.street) this.street.setVisible(v);
+  setStreetMode(mode) {
+    this.streetMode = mode;
+    if (this.street) this.street.setMode(mode);
   }
 
-  // Walk the pedestrians back and forth along their street.
+  setRoadsVisible(v) { this.setStreetMode(v ? 'all' : 'off'); }
+
+  // relationship-on-demand: focus a building's incident streets
+  setFocusBuilding(id) {
+    this.focusId = id || null;
+    if (this.street) this.street.setFocus(this.focusId);
+  }
+
+  setLodDistance(d) { this._lodDist2 = d * d; }
+
+  // Walk the pedestrians and apply distance-based level of detail.
   update(dt) {
     if (this.street) this.street.update(dt);
+    this._lodAcc += dt;
+    if (this._lodAcc > 0.4) { this._lodAcc = 0; this._updateLOD(); }
+  }
+
+  _updateLOD() {
+    const cam = this.camera;
+    if (!cam || !isFinite(this._lodDist2)) return;
+    const cp = cam.position;
+    for (const e of this.byBuilding.values()) {
+      if (!e.world || !e.body) continue;
+      const far = e.world.distanceToSquared(cp) > this._lodDist2;
+      if (far === e.far) continue;
+      e.far = far;
+      e.body.material = far ? e.matSimple : e.matFull;
+      e.body.castShadow = !far;
+    }
   }
 
   _disposeGroup(group) {
@@ -85,6 +117,8 @@ export class City {
       this.street.dispose();
       this.street = null;
     }
+    for (const m of this._extraMats) m.dispose();
+    this._extraMats = [];
     this.pickables = [];
     this.byBuilding.clear();
     this.buildingMeshes.clear();
@@ -159,10 +193,15 @@ export class City {
 
     this.street = new StreetNetwork(this.model, this.byBuilding, side, hash01);
     this.street.build();
-    this.root.add(this.street.group, this.street.walkerGroup);
-    this.street.setVisible(this.roadsVisible !== false);
+    this.street.setMode(this.streetMode);
+    this.street.setFocus(this.focusId);
+    this.root.add(this.street.group, this.street.walkerGroup, this.street.focusGroup);
     this.root.position.set(-side / 2, 0, -side / 2);
     this.groundSide = side;
+    // precompute world centres for distance-based LOD
+    for (const e of this.byBuilding.values()) {
+      e.world = e.center.clone().add(this.root.position);
+    }
   }
 
   _addBuilding(b, rect, { hKey, cKey, hMax, cMin, cMax }) {
@@ -192,6 +231,16 @@ export class City {
     mat.userData.baseEmissive = new THREE.Color('#ffd79a');
     mat.userData.baseIntensity = 0;
 
+    // low-detail material (no facade map) used for distant buildings
+    const matSimple = new THREE.MeshStandardMaterial({
+      color: color.clone(), emissive: new THREE.Color('#ffd79a'), emissiveIntensity: 0,
+      roughness: 0.78, metalness: 0.05,
+    });
+    matSimple.userData.window = true;
+    matSimple.userData.baseEmissive = mat.userData.baseEmissive;
+    matSimple.userData.baseIntensity = 0;
+    this._extraMats.push(matSimple);
+
     const body = new THREE.Mesh(geo, mat);
     body.position.y = 0.62 + h / 2;
     body.castShadow = true;
@@ -203,7 +252,8 @@ export class City {
     group.position.set(rect.x + rect.w / 2, 0, rect.y + rect.h / 2);
     this.buildingGroup.add(group);
     this.byBuilding.set(b.id, {
-      group, materials: [mat], building: b,
+      group, materials: [mat, matSimple], building: b,
+      body, matFull: mat, matSimple, far: false,
       center: new THREE.Vector3(rect.x + rect.w / 2, 0.62 + h / 2, rect.y + rect.h / 2),
       ground: new THREE.Vector3(rect.x + rect.w / 2, STREET_Y, rect.y + rect.h / 2),
       half: { w: w / 2, d: d / 2 },
