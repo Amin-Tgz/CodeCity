@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {t} from './i18n.js';
 
 // ---------------------------------------------------------------------------
 // DevOps layer: the project's infrastructure shown below the city - a HUD band
@@ -14,30 +15,35 @@ const CAT_COLOR = {
   container: '#94a3b8',
   dependency: '#8a97b3',
 };
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function gauge(label, val, color) {
   const pct = Math.max(2, Math.min(100, val.pct));
+  const estimate = val.estimate.replace(/^(\d+(?:\.\d+)?) vCPU under load$/, (_,n)=>t('{n} vCPU under load',{n})).replace(/^(\d+) MB resident$/, (_,n)=>t('{n} MB resident',{n}));
   return `<div class="gauge">
     <div class="gauge-top"><span>${label}</span><span class="gauge-pct">${val.pct}%</span></div>
     <div class="gauge-bar"><i style="width:${pct}%;background:${color}"></i></div>
-    <div class="gauge-est">${val.estimate}</div>
+    <div class="gauge-est">${escapeHtml(estimate)}</div>
   </div>`;
 }
 
 export function renderInfraHUD(infra) {
   const el = document.getElementById('infra');
   if (!el) return null;
-  if (!infra) { el.innerHTML = '<div class="infra-head">Infrastructure — no data (rebuild city.json)</div>'; return el; }
-  const cat = {};
-  for (const s of infra.services) (cat[s.category] = cat[s.category] || []).push(s.name);
-  const chips = Object.entries(cat).map(([c, names]) => `
+  if (!infra) { el.innerHTML = '<div class="infra-head">No infrastructure data</div>'; return el; }
+  const cat = new Map();
+  for (const s of infra.services) {
+    if (!cat.has(s.category)) cat.set(s.category, []);
+    cat.get(s.category).push(s.name);
+  }
+  const chips = [...cat].map(([c, names]) => `
     <div class="infra-group">
-      <span class="infra-cat" style="color:${CAT_COLOR[c] || '#8a97b3'}">${c}</span>
-      <span class="infra-names">${names.slice(0, 9).join(', ')}${names.length > 9 ? ` +${names.length - 9}` : ''}</span>
+      <span class="infra-cat" style="color:${Object.hasOwn(CAT_COLOR, c) ? CAT_COLOR[c] : '#8a97b3'}">${escapeHtml(c)}</span>
+      <span class="infra-names">${escapeHtml(names.slice(0, 9).join(', '))}${names.length > 9 ? ` +${names.length - 9}` : ''}</span>
     </div>`).join('');
   el.innerHTML = `
     <div class="infra-head"><b>Infrastructure</b>
-      <span class="muted">· ${infra.services.length} components detected (total)</span>
+      <span class="muted" data-component-count="${infra.services.length}">· ${escapeHtml(t('{n} components detected (total)',{n:infra.services.length}))}</span>
       <label class="infra-live" title="poll the optional local metrics agent">
         <input type="checkbox" id="infra-live" /> live</label></div>
     <div class="infra-gauges">
@@ -45,7 +51,7 @@ export function renderInfraHUD(infra) {
       ${gauge('RAM', infra.ram, '#f59e0b')}
     </div>
     <div class="infra-chips">${chips}</div>
-    <div class="infra-note" id="infra-note">${infra.note || ''}</div>`;
+    <div class="infra-note" id="infra-note">${escapeHtml(t(infra.note || ''))}</div>`;
   return el;
 }
 
@@ -56,13 +62,13 @@ export function setInfraLive(cpuPct, ramPct, note) {
   const bars = el.querySelectorAll('.gauge');
   if (bars[0]) {
     bars[0].querySelector('.gauge-pct').textContent = `${cpuPct}%`;
-    bars[0].querySelector('.gauge-bar i').style.width = `${Math.max(2, cpuPct)}%`;
-    bars[0].querySelector('.gauge-est').textContent = 'live (local agent)';
+    bars[0].querySelector('.gauge-bar i').style.width = `${Math.max(0, Math.min(100, cpuPct))}%`;
+    bars[0].querySelector('.gauge-est').textContent = 'live (whole machine)';
   }
   if (bars[1]) {
     bars[1].querySelector('.gauge-pct').textContent = `${ramPct}%`;
-    bars[1].querySelector('.gauge-bar i').style.width = `${Math.max(2, ramPct)}%`;
-    bars[1].querySelector('.gauge-est').textContent = 'live (local agent)';
+    bars[1].querySelector('.gauge-bar i').style.width = `${Math.max(0, Math.min(100, ramPct))}%`;
+    bars[1].querySelector('.gauge-est').textContent = 'live (whole machine)';
   }
   if (note) { const n = document.getElementById('infra-note'); if (n) n.textContent = note; }
 }

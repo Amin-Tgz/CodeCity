@@ -183,6 +183,19 @@ export function groundTexture() {
   return t;
 }
 
+export function grassTexture() {
+  const S=256,c=canvas(S,S),ctx=c.getContext('2d');
+  ctx.fillStyle='#93ad70';ctx.fillRect(0,0,S,S);
+  let seed=19;
+  const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  for(let i=0;i<7000;i++) {
+    const light=random()>.45;
+    ctx.strokeStyle=light?'rgba(196,211,143,.25)':'rgba(65,102,49,.18)';
+    const x=random()*S,y=random()*S;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+random()*2-1,y-2-random()*3);ctx.stroke();
+  }
+  const map=tex(c);map.repeat.set(110,110);return map;
+}
+
 /** Scale a box geometry's UVs so windows tile at a sensible density. */
 export function applyWindowUV(geometry, w, h) {
   const uv = geometry.attributes.uv;

@@ -29,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -86,7 +87,7 @@ MAX_ROADS = 2500
 # regexes used by the scanner / attribute estimation
 RE_PY_CLASS = re.compile(r"^(\s*)class\s+([A-Za-z_]\w*)")
 RE_PY_DEF = re.compile(r"^(\s*)def\s+([A-Za-z_]\w*)\s*\(")
-RE_JS_CLASS = re.compile(r"^\s*(?:export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)")
+RE_JS_CLASS = re.compile(r"^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)")
 RE_JS_FUNC = re.compile(
     r"^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)|"
     r"^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>"
@@ -152,13 +153,19 @@ def _js_class_body_range(lines: list[str], start: int) -> int:
     return min(len(lines), start + 4000)
 
 
+def _js_mask(text: str) -> str:
+    """Hide strings/comments while preserving offsets and line boundaries."""
+    pattern = r"//[^\n]*|/\*.*?\*/|([\"'`])(?:\\.|(?!\1).)*\1"
+    return re.sub(pattern, lambda m: ''.join('\n' if c == '\n' else ' ' for c in m.group()), text, flags=re.S)
+
+
 def _extract_attributes(text: str, language: str) -> int:
-    """Count distinct attribute/field names mentioned in a chunk of source."""
+    """Estimate declared/assigned fields; method calls are not attributes."""
     names: set[str] = set()
     if language == "python":
-        names = set(re.findall(r"\bself\.([A-Za-z_]\w*)", text))
+        names = set(re.findall(r"\bself\.([A-Za-z_]\w*)\s*(?::[^=\n]+)?\s*=(?!=)", text))
     elif language in ("typescript", "javascript", "vue", "svelte"):
-        names = set(re.findall(r"\bthis\.([A-Za-z_$][\w$]*)", text))
+        names = set(re.findall(r"\bthis\.([A-Za-z_$][\w$]*)\s*=(?!=|>)", text))
         # class field declarations: "  field: Type" / "  field = value"
         for line in text.splitlines():
             m = re.match(r"^\s{2,}(?:public |private |protected |readonly |static )*"
@@ -185,9 +192,10 @@ def _extract_attributes(text: str, language: str) -> int:
 def find_codegraph(root: Path, explicit: str | None) -> Path | None:
     if explicit:
         p = Path(explicit)
-        return p if p.exists() else None
-    for cand in (root / ".codegraph" / "codegraph.db",
-                 root.parent / ".codegraph" / "codegraph.db"):
+        if not p.is_file():
+            raise SystemExit(f"codegraph database does not exist: {p}")
+        return p
+    for cand in (root / ".codegraph" / "codegraph.db",):
         if cand.exists():
             return cand
     return None
@@ -247,8 +255,11 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
                 if c["start_line"] or c["end_line"]:
                     lines = text_for(fp).splitlines()
                     body = "\n".join(lines[(c["start_line"] or 1) - 1: c["end_line"] or len(lines)])
-                attrs = _extract_attributes(body, lang) or props
-                bid = f"{fp}::{c['name']}"
+                attrs = max(_extract_attributes(body, lang), props)
+                name = c['name']
+                if sum(n['name'] == name for n in classes) > 1:
+                    name = c['qualified_name'] or f"{name}@{c['start_line']}"
+                bid = f"{fp}::{name}"
                 member_list = [
                     {
                         "name": m["name"],
@@ -268,7 +279,7 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
                     "language": lang,
                     "loc": loc,
                     "methods": methods,
-                    "attributes": max(attrs, 1),
+                    "attributes": attrs,
                     "functions": 0,
                     "start_line": c["start_line"] or 1,
                     "members": member_list,
@@ -306,7 +317,7 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
                 "language": lang,
                 "loc": max(1, loc),
                 "methods": 0,
-                "attributes": max(len(vars_), 1),
+                "attributes": len(vars_),
                 "functions": len(funcs),
                 "start_line": 1,
                 "members": member_list,
@@ -341,12 +352,11 @@ def load_from_codegraph(db: Path, root: Path, root_name: str) -> dict:
 def scan_tree(root: Path, root_name: str) -> dict:
     buildings: list[dict] = []
     lang_counter: dict[str, int] = defaultdict(int)
-    module_paths: dict[str, str] = {}   # dotted/basename module -> file
     file_rel_to_abs: dict[str, Path] = {}
 
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith(".")]
-        for fn in filenames:
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and not d.startswith("."))
+        for fn in sorted(filenames):
             ext = Path(fn).suffix.lower()
             lang = LANG_BY_EXT.get(ext)
             if not lang:
@@ -357,8 +367,6 @@ def scan_tree(root: Path, root_name: str) -> dict:
             except ValueError:
                 continue
             file_rel_to_abs[rel] = abs_p
-            module_paths[rel[:-len(ext)]] = rel
-            module_paths[Path(rel).stem] = rel
             lang_counter[lang] += 1
             buildings.extend(_scan_file(rel, abs_p, lang))
 
@@ -391,6 +399,71 @@ def scan_tree(root: Path, root_name: str) -> dict:
     return assemble(buildings, roads[:MAX_ROADS], root, root_name, "scan", lang_counter, 0, 0)
 
 
+def _scan_python(rel: str, text: str) -> list[dict]:
+    """Use Python's parser for scope boundaries, async methods and members."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        # Incomplete or version-incompatible files still get a module estimate.
+        funcs = len(re.findall(r"^(?:async\s+)?def\s+\w+", text, re.M))
+        return [_mk(rel, Path(rel).name, "module", "python", _count_lines(text), 0, 0, funcs, 1)]
+
+    functions = (ast.FunctionDef, ast.AsyncFunctionDef)
+    out = []
+
+    class Classes(ast.NodeVisitor):
+        def __init__(self):
+            self.scope = []
+
+        def visit_ClassDef(self, node):
+            name = ".".join([*self.scope, node.name])
+            methods = [n for n in node.body if isinstance(n, functions)]
+            attrs = set()
+            def own_nodes(n):
+                yield n
+                for child in ast.iter_child_nodes(n):
+                    if not isinstance(child, ast.ClassDef):
+                        yield from own_nodes(child)
+
+            for n in own_nodes(node):
+                if isinstance(n, ast.Attribute) and isinstance(n.ctx, ast.Store) and isinstance(n.value, ast.Name) and n.value.id == 'self':
+                    attrs.add(n.attr)
+            for n in node.body:
+                targets = n.targets if isinstance(n, ast.Assign) else [n.target] if isinstance(n, ast.AnnAssign) else []
+                for target in targets:
+                    attrs.update(x.id for x in ast.walk(target) if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Store))
+            b = _mk(rel, node.name, "class", "python", node.end_lineno - node.lineno + 1,
+                    len(methods), len(attrs), 0, node.lineno)
+            b['id'] = f"{rel}::{name}"
+            b['members'] = [{"name": m.name, "kind": "method", "loc": m.end_lineno - m.lineno + 1, "line": m.lineno} for m in methods]
+            b['members'] += [{"name": a, "kind": "property", "loc": 1, "line": node.lineno} for a in sorted(attrs)]
+            out.append(b)
+            self.scope.append(node.name)
+            self.generic_visit(node)
+            self.scope.pop()
+
+        def visit_FunctionDef(self, node):
+            self.scope.append(node.name)
+            self.generic_visit(node)
+            self.scope.pop()
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+
+    Classes().visit(tree)
+    funcs = [n for n in tree.body if isinstance(n, functions)]
+    variables = set()
+    for n in tree.body:
+        targets = n.targets if isinstance(n, ast.Assign) else [n.target] if isinstance(n, ast.AnnAssign) else []
+        for target in targets:
+            variables.update(x.id for x in ast.walk(target) if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Store))
+    if not out or funcs or variables:
+        class_lines = sum(n.end_lineno - n.lineno + 1 for n in tree.body if isinstance(n, ast.ClassDef))
+        b = _mk(rel, Path(rel).name, "module", "python", max(1, _count_lines(text) - class_lines), 0, len(variables), len(funcs), 1)
+        b['members'] = [{"name": f.name, "kind": "function", "loc": f.end_lineno - f.lineno + 1, "line": f.lineno} for f in funcs]
+        out.append(b)
+    return out
+
+
 def _scan_file(rel: str, abs_p: Path, lang: str) -> list[dict]:
     text = _read(abs_p)
     if not text:
@@ -403,55 +476,54 @@ def _scan_file(rel: str, abs_p: Path, lang: str) -> list[dict]:
     out: list[dict] = []
 
     if lang == "python":
-        classes = []
-        for i, line in enumerate(lines):
-            m = RE_PY_CLASS.match(line)
-            if m:
-                classes.append((i, m.group(1), m.group(2)))
-        for idx, (i, indent, name) in enumerate(classes):
-            # body extends to the next class at the same/lower indent, or EOF
-            end = total_lines
-            for j2, indent2, _ in classes[idx + 1:]:
-                if len(indent2) <= len(indent):
-                    end = j2
-                    break
-            body = "\n".join(lines[i:end])
-            methods = len(re.findall(r"^\s+def\s+\w+\s*\(", body, re.M))
-            attrs = _extract_attributes(body, "python")
-            out.append(_mk(rel, name, "class", lang, end - i, methods, max(attrs, 1), 0, i + 1))
-        if not classes:
-            funcs = sum(1 for line in lines if RE_PY_DEF.match(line))
-            mod_vars = len(re.findall(r"^[A-Za-z_]\w*\s*(?::[^=]+)?=", text, re.M))
-            out.append(_mk(rel, os.path.basename(rel), "module", lang, total_lines,
-                          0, max(mod_vars, 1), funcs, 1))
+        return _scan_python(rel, text)
     elif lang in ("typescript", "javascript", "vue", "svelte"):
         i = 0
         class_count = 0
+        masked_lines = _js_mask(text).splitlines()
+        module_lines = lines.copy()
         while i < len(lines):
-            m = RE_JS_CLASS.match(lines[i])
+            m = RE_JS_CLASS.match(masked_lines[i])
             if m:
-                end = _js_class_body_range(lines, i)
-                body = "\n".join(lines[i:end])
-                methods = len(re.findall(
-                    r"^\s{2,}(?:public |private |protected |static |async |get |set |\*)*"
-                    r"[A-Za-z_$][\w$]*\s*(?:<[^>]*>)?\s*\(", body, re.M))
-                attrs = _extract_attributes(body, lang)
+                end = _js_class_body_range(masked_lines, i)
+                body = '\n'.join(masked_lines[i:end])
+                methods = 0
+                fields = set()
+                depth = 0
+                members = []
+                for offset, line in enumerate(masked_lines[i:end]):
+                    if depth == 1:
+                        method = re.match(r'^\s*(?:(?:public|private|protected|static|async|get|set|override|abstract)\s+)*\*?([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\([^;]*?\)\s*(?::[^{;]+)?\s*(?:\{|;)', line)
+                        field = re.match(r'^\s*(?:(?:public|private|protected|readonly|static|declare)\s+)*([A-Za-z_$#][\w$#]*)[?!]?\s*[:=;]', line)
+                        if method:
+                            methods += 1
+                            members.append({'name': method.group(1), 'kind': 'method', 'loc': 1, 'line': i + offset + 1})
+                        elif field:
+                            fields.add(field.group(1))
+                    depth += line.count('{') - line.count('}')
+                fields.update(re.findall(r'\bthis\.([A-Za-z_$#][\w$#]*)\s*=(?!=|>)', body))
+                attrs = len(fields)
                 out.append(_mk(rel, m.group(1), "class", lang, end - i, methods,
-                               max(attrs, 1), 0, i + 1))
+                               attrs, 0, i + 1))
+                out[-1]['members'] = members
+                out[-1]['members'] += [{'name': name, 'kind': 'property', 'loc': 1, 'line': i + 1} for name in sorted(fields)]
+                module_lines[i:end] = [''] * (end - i)
                 class_count += 1
                 i = end
             else:
                 i += 1
-        if class_count == 0:
-            funcs = sum(1 for line in lines if RE_JS_FUNC.match(line))
-            mod_vars = len(re.findall(r"^(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*", text, re.M))
-            out.append(_mk(rel, os.path.basename(rel), "module", lang, total_lines,
-                          0, max(mod_vars, 1), funcs, 1))
+        module_text = '\n'.join(module_lines)
+        funcs = sum(1 for line in module_lines if RE_JS_FUNC.match(line))
+        mod_vars = len(re.findall(r"^(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*", module_text, re.M))
+        if class_count == 0 or funcs or mod_vars:
+            module_loc = total_lines if class_count == 0 else sum(bool(line.strip()) for line in module_lines)
+            out.append(_mk(rel, os.path.basename(rel), "module", lang, module_loc,
+                          0, mod_vars, funcs, 1))
     else:
         funcs = sum(1 for line in lines if RE_GENERIC_FUNC.match(line))
         mod_vars = len(re.findall(r"^\s*(?:static\s+)?(?:const|final|var|let)\s+\w+", text, re.M))
         out.append(_mk(rel, os.path.basename(rel), "module", lang, total_lines,
-                      0, max(mod_vars, 1), funcs, 1))
+                      0, mod_vars, funcs, 1))
     return out
 
 
@@ -466,7 +538,7 @@ def _mk(rel: str, name: str, kind: str, lang: str, loc: int, methods: int,
         "language": lang,
         "loc": max(1, loc),
         "methods": methods,
-        "attributes": max(1, attrs),
+        "attributes": attrs,
         "functions": funcs,
         "start_line": start,
         "members": [],
@@ -476,15 +548,38 @@ def _mk(rel: str, name: str, kind: str, lang: str, loc: int, methods: int,
 def _resolve_imports(rel, text, lang, known):
     targets = set()
     if lang == "python":
-        for m in re.finditer(r"^\s*from\s+([\w\.]+)\s+import|^\s*import\s+([\w\.]+)", text, re.M):
-            mod = (m.group(1) or m.group(2)).split(".")[0]
-            hit = known.get(mod)
-            if hit:
-                targets.add(hit)
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            return targets
+
+        def resolve(module):
+            stem = module.replace('.', '/')
+            for suffix in ('.py', '.pyi', '/__init__.py', '/__init__.pyi'):
+                candidate = stem + suffix
+                if candidate in known:
+                    targets.add(candidate)
+                    return
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    resolve(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                base = node.module or ''
+                if node.level:
+                    parts = list(Path(rel).parent.parts)
+                    if node.level > len(parts):
+                        continue
+                    base = '.'.join(parts[:len(parts) - node.level + 1] + ([base] if base else []))
+                resolve(base)
+                for alias in node.names:
+                    if alias.name != '*':
+                        resolve('.'.join(filter(None, (base, alias.name))))
     elif lang in ("typescript", "javascript", "vue", "svelte"):
         base = os.path.dirname(rel)
-        for m in re.finditer(r"""from\s+['"](\.[^'"]+)['"]|require\(\s*['"](\.[^'"]+)['"]""", text):
-            spec = m.group(1) or m.group(2)
+        for m in re.finditer(r"""(?:from\s+|import\s*|(?:require|import)\(\s*)['"](\.[^'"]+)['"]""", text):
+            spec = m.group(1)
             if not spec:
                 continue
             cand = os.path.normpath(os.path.join(base, spec)).replace("\\", "/")
@@ -503,16 +598,24 @@ def _resolve_imports(rel, text, lang, known):
 def assemble(buildings, roads, root: Path, root_name: str,
              source: str, languages, node_count: int, edge_count: int) -> dict:
     # drop unreadable / degenerate buildings
-    buildings = [b for b in buildings if b["loc"] > 0]
+    buildings = sorted((b for b in buildings if b["loc"] > 0), key=lambda b: (b['file'], b['start_line'], b['id']))
+    roads = sorted(roads, key=lambda r: (-r['weight'], r['a'], r['b'], r['kind']))
 
     # canonical CodeCity metrics: NOM -> height, NOA -> footprint
     for b in buildings:
         if b["kind"] == "class":
-            b["nom"] = max(b["methods"], 1)
-            b["noa"] = max(b["attributes"], 1)
+            b["nom"] = b["methods"]
+            b["noa"] = b["attributes"]
         else:
-            b["nom"] = max(b["functions"], 1)
-            b["noa"] = max(b["attributes"], 1)
+            b["nom"] = b["functions"]
+            b["noa"] = b["attributes"]
+
+    degrees = defaultdict(int)
+    for road in roads:
+        degrees[road['a']] += road['weight']
+        degrees[road['b']] += road['weight']
+    for b in buildings:
+        b['deps'] = degrees[b['id']]
 
     # districts
     districts: dict[str, dict] = {}
@@ -603,7 +706,7 @@ def _classify(name: str) -> str:
 
 def _dep_name(raw: str) -> str:
     raw = raw.strip().strip('"\'')
-    if not raw or raw.startswith("#"):
+    if not raw or raw.startswith(("#", "-")):
         return ""
     return re.split(r"[<>=!~\[; (]", raw)[0].strip()
 
@@ -622,8 +725,7 @@ def scan_infra(root: Path, model: dict) -> dict:
         seen.add(key)
         services.append({"name": name, "category": category, "source": source})
 
-    SKIP = {"node_modules", ".git", ".venv", "venv", "env", "dist", "build",
-            "__pycache__", ".next", "out", ".codegraph", "site-packages", "coverage"}
+    SKIP = SKIP_DIRS
 
     def find(pred, maxdepth=5):
         hits = []
@@ -724,7 +826,7 @@ def scan_history(root: Path, max_frames: int = 48) -> dict | None:
     """
     try:
         out = subprocess.check_output(
-            ["git", "-C", str(root), "log", "--reverse", "--no-merges",
+            ["git", "-c", "core.quotepath=false", "-C", str(root), "log", "--reverse", "--no-merges", "--no-renames",
              "--pretty=format:@@%H%x09%at", "--numstat"],
             text=True, errors="ignore", stderr=subprocess.DEVNULL,
         )
@@ -744,16 +846,22 @@ def scan_history(root: Path, max_frames: int = 48) -> dict | None:
             continue
         parts = line.split("\t")
         if len(parts) >= 3 and parts[2]:
+            file = parts[2]
+            if Path(file).suffix.lower() not in LANG_BY_EXT or any(p in SKIP_DIRS for p in Path(file).parts):
+                continue
             try:
                 a = int(parts[0]); d = int(parts[1])
             except ValueError:
                 continue
-            files[parts[2]] = max(0, files.get(parts[2], 0) + a - d)
+            count = max(0, files.get(file, 0) + a - d)
+            if count:
+                files[file] = count
+            else:
+                files.pop(file, None)
     if cur is not None:
         cur["files"] = dict(files)
         commits.append(cur)
 
-    commits = [c for c in commits if c["files"]]
     if not commits:
         return None
     if len(commits) > max_frames:
@@ -779,6 +887,8 @@ def load_coverage(root: Path, path: str | None) -> dict | None:
         data = json.loads(p.read_text(encoding="utf-8", errors="ignore"))
     except Exception:
         return None
+    if not isinstance(data, dict):
+        return None
 
     def pct_of(v):
         if isinstance(v, (int, float)):
@@ -790,7 +900,7 @@ def load_coverage(root: Path, path: str | None) -> dict | None:
                     if isinstance(x, dict) and "pct" in x:
                         x = x["pct"]
                     if isinstance(x, (int, float)):
-                        return float(x) / 100 if x > 1 else float(x)
+                        return float(x) / 100 if k == 'pct' or isinstance(v[k], dict) or x > 1 else float(x)
         return None
 
     cov = {}
@@ -806,7 +916,7 @@ def coverage_for(file: str, cov: dict) -> float | None:
     if f in cov:
         return cov[f]
     for k, v in cov.items():
-        if k.endswith(f) or f.endswith(k):
+        if k.endswith('/' + f) or f.endswith('/' + k):
             return v
     return None
 
@@ -814,19 +924,20 @@ def coverage_for(file: str, cov: dict) -> float | None:
 def build(root: Path, out: Path, source: str, codegraph_path: str | None,
           history: bool = False, coverage: str | None = None) -> dict:
     root = root.resolve()
+    if not root.is_dir():
+        raise ValueError(f"codebase root is not a directory: {root}")
     root_name = root.name
     db = find_codegraph(root, codegraph_path) if source in ("auto", "codegraph") else None
 
     if source == "codegraph" and db is None:
         raise SystemExit(f"no codegraph database found under {root}")
-    if source == "auto" and db is not None:
+    if source in ("auto", "codegraph") and db is not None:
         print(f"[codecity] source: codegraph  ({db})")
         model = load_from_codegraph(db, root, root_name)
     else:
         print(f"[codecity] source: scan  ({root})")
         model = scan_tree(root, root_name)
 
-    model["meta"]["infra"] = scan_infra(root, model)
     if history:
         hist = scan_history(root)
         if hist:
@@ -854,8 +965,8 @@ def build(root: Path, out: Path, source: str, codegraph_path: str | None,
 def main(argv=None) -> int:
     here = Path(__file__).resolve().parent
     ap = argparse.ArgumentParser(description="Build a CodeCity model (city.json) from a codebase.")
-    ap.add_argument("root", nargs="?", default=str(here.parent),
-                    help="repository root to visualise (default: parent of codecity/)")
+    ap.add_argument("root", nargs="?", default=str(here),
+                    help="repository root to visualise (default: CodeCity directory)")
     ap.add_argument("--out", default=str(here / "city.json"), help="output city.json path")
     ap.add_argument("--source", choices=["auto", "codegraph", "scan"], default="auto")
     ap.add_argument("--codegraph", default=None, help="explicit path to codegraph.db")

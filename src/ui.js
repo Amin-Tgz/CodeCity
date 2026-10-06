@@ -1,22 +1,41 @@
 import { makeRampCanvas, locColor, heatColor, coverageColor, languageColor } from './metrics.js';
+import {t} from './i18n.js';
+import {revealFile,canReveal} from './projects.js';
+import {attachInspector} from './inspection-ui.js';
+import {registerAutoHidePanel} from './panels.js';
 
 const $ = (id) => document.getElementById(id);
 
 export function renderStats(model) {
-  const t = model.meta.totals;
+  const totals = model.meta.totals;
   $('stats').innerHTML = [
-    `<span><b>${t.buildings}</b> buildings</span>`,
-    `<span><b>${t.districts}</b> districts</span>`,
-    `<span><b>${t.roads}</b> roads</span>`,
-    `<span><b>${t.loc.toLocaleString()}</b> LOC</span>`,
+    `<span>${escapeHtml(t('{n} buildings', {n:totals.buildings}))}</span>`,
+    `<span>${escapeHtml(t('{n} districts', {n:totals.districts}))}</span>`,
+    `<span id="roads-stat">${escapeHtml(t('{n} roads', {n:totals.roads}))}</span>`,
+    `<span><b>${totals.loc.toLocaleString()}</b> LOC</span>`,
   ].join('');
   $('source-badge').textContent = model.meta.source === 'codegraph'
-    ? `indexed · ${t.nodes} nodes / ${t.edges} edges`
-    : `source scan`;
+    ? t('indexed · {n} nodes / {e} edges', {n:totals.nodes,e:totals.edges})
+    : model.meta.analysis ? 'source scan · AST + estimates' : t('source scan · estimated');
   $('source-badge').title = model.meta.root;
+  if (model.meta.warnings?.length) $('source-badge').title += '\n' + model.meta.warnings.join('\n');
 }
 
-export function renderLegend(colorKey, model) {
+export function renderRoadStats(city) {
+  const el = $('roads-stat');
+  if(!el||!city.street)return;
+  const skipped = city.street.unrouted;
+  el.textContent = t('{n} streets',{n:city.street.paths.length}) + (skipped ? t(' · {n} unrouted',{n:skipped}) : '');
+  el.title = `${city.model.roads.length} dependency links in the model. Links across terraces, without a clear route, or beyond the drawing budget remain selectable in the dependency inspector.`;
+}
+
+export function renderLegend(colorKey, model, mapping) {
+  if (mapping) {
+    const labels = { nom: 'methods (NOM)', noa: 'attributes (NOA)', loc: 'lines of code (LOC)', deps: 'dependencies', language: 'language', coverage: 'test coverage (grey = unknown)' };
+    document.querySelector('.legend-notes').innerHTML = ['height', 'footprint', 'colour'].map((key) =>
+      `<div><b>${escapeHtml(t(key))}</b> = ${escapeHtml(t(labels[mapping[key === 'colour' ? 'color' : key]]))}</div>`).join('')
+      + `<div><b>${escapeHtml(t('district'))}</b> = ${escapeHtml(t('folder / package'))}</div>`;
+  }
   const host = $('ramp');
   if (colorKey === 'language') {
     const langs = Object.keys((model && model.meta && model.meta.languages) || {});
@@ -25,7 +44,7 @@ export function renderLegend(colorKey, model) {
     host.style.height = 'auto';
     $('ramp-lo').textContent = '';
     $('ramp-hi').textContent = '';
-    $('ramp-title').textContent = 'language';
+    $('ramp-title').textContent = t('language');
     return;
   }
   host.style.height = '';
@@ -39,13 +58,14 @@ export function renderLegend(colorKey, model) {
     loc: 'lines of code (LOC)', nom: 'methods (NOM)', noa: 'attributes (NOA)',
     deps: 'dependencies', coverage: 'test coverage',
   };
-  $('ramp-lo').textContent = colorKey === 'coverage' ? 'low' : 'low';
-  $('ramp-hi').textContent = colorKey === 'coverage' ? 'high' : 'high';
-  $('ramp-title').textContent = metricLabel[colorKey] || colorKey;
+  $('ramp-lo').textContent = t('low');
+  $('ramp-hi').textContent = t('high');
+  $('ramp-title').textContent = t(metricLabel[colorKey] || colorKey);
 }
 
-export function renderDetails(building, { onMember } = {}) {
+export function renderDetails(building, { onMember, onClose, city, onSelect } = {}) {
   const box = $('details');
+  const minimized = box.querySelector('#details-body')?.hidden || false;
   if (!building) {
     box.classList.remove('open');
     return;
@@ -60,14 +80,16 @@ export function renderDetails(building, { onMember } = {}) {
     ['attributes (NOA)', building.attributes],
     ['top-level funcs', building.functions],
     ['dependencies', building.deps || 0],
+    ['complexity',building.complexity??'unknown'],
+    ['source type',building.generated?'generated':'authored / unclassified'],
   ];
   const members = building.members || [];
   const membersHtml = members.length ? `
-    <div class="details-section">members (${members.length}) · click to highlight</div>
+    <div class="details-section">${escapeHtml(t('members ({n}) · click to highlight',{n:members.length}))}</div>
     <div class="member-list">${members.map((m, i) => `
-      <button class="member-row" data-mi="${i}" title="line ${m.line}">
+      <button class="member-row" data-mi="${i}" title="${escapeHtml(t('line'))} ${m.line}">
         <span class="member-name">${escapeHtml(m.name)}</span>
-        <span class="member-meta">${escapeHtml(m.kind)} · ${m.loc} LOC</span>
+        <span class="member-meta">${escapeHtml(t(m.kind))} · ${m.loc} LOC</span>
       </button>`).join('')}</div>` : '';
   box.innerHTML = `
     <div class="details-head">
@@ -75,21 +97,48 @@ export function renderDetails(building, { onMember } = {}) {
         <div class="details-name">${escapeHtml(building.name)}</div>
         <div class="details-sub">${escapeHtml(building.district)}</div>
       </div>
-      <button id="details-close" class="icon-btn" title="close">&times;</button>
+      <button id="details-minimize" class="icon-btn" title="Minimize" aria-label="Minimize" aria-expanded="true">−</button>
+      <button id="details-close" class="icon-btn" title="close" aria-label="close">&times;</button>
     </div>
-    <table>${rows.map(([k, v]) => `<tr><td>${k}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}</table>
+    <div id="details-body">
+    <table>${rows.map(([k, v]) => `<tr><td>${escapeHtml(t(k))}</td><td ${k === 'file' ? 'dir="ltr"' : ''}>${['LOC','methods (NOM)','attributes (NOA)','dependencies','complexity'].includes(k)?`<button class="metric-explain mini-btn" data-metric="${({'LOC':'loc','methods (NOM)':'nom','attributes (NOA)':'noa','dependencies':'deps','complexity':'complexity'})[k]}" title="Explain this metric">${escapeHtml(String(v))}</button>`:escapeHtml(k==='kind'?t(String(v)):String(v))}</td></tr>`).join('')}</table>
     ${membersHtml}
     <div class="details-actions">
       <button id="details-open-file" class="mini-btn">copy path</button>
-    </div>`;
+      <button id="details-reveal" class="mini-btn" ${canReveal()?'':'disabled title="File manager requires the native launcher."'}>Open in file manager</button>
+    </div>
+    <div id="details-status" class="muted-note" role="status"></div></div>`;
   box.classList.add('open');
-  $('details-close').onclick = () => renderDetails(null);
-  $('details-open-file').onclick = (e) => {
-    navigator.clipboard?.writeText(building.file);
-    e.target.textContent = 'copied';
-    setTimeout(() => { e.target.textContent = 'copy path'; }, 1200);
+  registerAutoHidePanel(box);
+  $('details-body').hidden = minimized;
+  $('details-minimize').textContent = minimized ? '+' : '−';
+  $('details-minimize').setAttribute('aria-expanded',String(!minimized));
+  $('details-minimize').onclick = e => {
+    const hidden = !$('details-body').hidden;
+    $('details-body').hidden = hidden;
+    e.currentTarget.textContent = hidden ? '+' : '−';
+    e.currentTarget.setAttribute('aria-expanded',String(!hidden));
   };
-  box.querySelectorAll('.member-row').forEach((row) => {
+  $('details-close').onclick = () => { renderDetails(null); onClose?.(); };
+  $('details-open-file').onclick = async (e) => {
+    try {
+      if (!navigator.clipboard) throw new Error('clipboard unavailable');
+      const root = window.__codecity?.model.meta.root || '';
+      const separator = root.includes('\\') ? '\\' : '/';
+      await navigator.clipboard.writeText(root ? root.replace(/[\\/]$/,'') + separator + building.file.replaceAll('/',separator) : building.file);
+      e.target.textContent = t('copied');
+    } catch { e.target.textContent = t('copy unavailable'); }
+    setTimeout(() => { e.target.textContent = t('copy path'); }, 1200);
+  };
+  $('details-reveal').onclick = async e => {
+    const btn=e.currentTarget,status=$('details-status');btn.disabled=true;status.textContent=t('Opening…');
+    try {await revealFile(building.file);status.textContent=t('Opened in file manager.');}
+    catch(err){status.textContent=err.message;}
+    finally{btn.disabled=false;}
+  };
+  if(city) attachInspector($('details-body'),building,{city,onSelect});
+  box.querySelectorAll('.metric-explain').forEach(button=>button.onclick=()=>{const evidence=box.querySelector('.metric-evidence');if(evidence){evidence.open=true;(evidence.querySelector(`[data-metric="${button.dataset.metric}"]`)||evidence).scrollIntoView({block:'nearest'});}});
+  box.querySelectorAll('.member-list .member-row').forEach((row) => {
     row.onclick = () => {
       box.querySelectorAll('.member-row.active').forEach((r) => r.classList.remove('active'));
       row.classList.add('active');
@@ -101,7 +150,7 @@ export function renderDetails(building, { onMember } = {}) {
 export function buildDistrictList(model, onPick) {
   const sel = $('filter');
   const opts = ['<option value="">all districts</option>']
-    .concat(model.districts.map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)} (${d.buildings})</option>`));
+    .concat(model.districts.map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)} (${d.subtree_buildings??d.buildings})</option>`));
   sel.innerHTML = opts.join('');
   sel.onchange = () => onPick(sel.value);
 }
@@ -113,7 +162,7 @@ export function showTooltip(building, x, y) {
     return;
   }
   tip.innerHTML = `<b>${escapeHtml(building.name)}</b><br><span>${escapeHtml(building.file)}</span>
-    <br><span class="muted">NOM ${building.methods + building.functions} · NOA ${building.attributes} · LOC ${building.loc}</span>`;
+    <br><span class="muted">NOM ${building.nom} · NOA ${building.noa} · LOC ${building.loc}</span>`;
   tip.style.display = 'block';
   const pad = 14;
   const w = tip.offsetWidth;
@@ -131,6 +180,12 @@ export function setLoading(text) {
   } else {
     el.style.display = 'none';
   }
+}
+
+export function setError(text) {
+  setLoading(text);
+  document.querySelector('#loading .spinner').style.display = 'none';
+  $('loading').setAttribute('role', 'alert');
 }
 
 function escapeHtml(s) {

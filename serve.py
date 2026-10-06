@@ -38,7 +38,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Serve the CodeCity viewer.")
     ap.add_argument("--port", type=int, default=8137)
     ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--root", default=str(HERE.parent), help="codebase to visualise")
+    ap.add_argument("--root", default=None, help="codebase to visualise (default: CodeCity directory)")
     ap.add_argument("--source", choices=["auto", "codegraph", "scan"], default="auto")
     ap.add_argument("--rebuild", action="store_true", help="rebuild city.json before serving")
     ap.add_argument("--no-build", action="store_true", help="do not build, just serve")
@@ -46,11 +46,12 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     city_json = HERE / "city.json"
-    if not args.no_build and (args.rebuild or not city_json.exists()):
+    codebase_root = Path(args.root) if args.root is not None else HERE
+    if not args.no_build and (args.rebuild or args.root is not None or args.source != 'auto' or not city_json.exists()):
         sys.path.insert(0, str(HERE))
         import build_city
-        print(f"[codecity] building model from {args.root}")
-        build_city.build(Path(args.root), city_json, args.source, None)
+        print(f"[codecity] building model from {codebase_root}")
+        build_city.build(codebase_root, city_json, args.source, None)
     elif not city_json.exists():
         print("[codecity] city.json missing - run without --no-build, or: python build_city.py")
         return 1
@@ -66,9 +67,14 @@ def main(argv=None) -> int:
         except OSError:
             port += 1
     else:
-        print("[codecity] no free port found")
-        return 1
+        # Some systems reserve entire port ranges; ask the OS for a free port.
+        try:
+            httpd = Server((args.host, 0), handler)
+        except OSError as err:
+            print(f"[codecity] could not start server: {err}")
+            return 1
 
+    port = httpd.server_address[1]
     url = f"http://{args.host}:{port}/index.html"
     print(f"[codecity] serving {HERE}  ->  {url}")
     print("[codecity] Ctrl+C to stop")

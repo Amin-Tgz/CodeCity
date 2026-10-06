@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.playwright-mcp/
+output/
+node_modules/
+dist/
+*.tgz
+.npm-cache/

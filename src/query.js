@@ -19,6 +19,7 @@ const FIELDS = {
 };
 
 const METRICS = ['nom', 'noa', 'loc', 'deps'];
+const LANG_ALIASES = { ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript', py: 'python', cs: 'csharp' };
 
 function cmp(a, op, b) {
   switch (op) {
@@ -38,8 +39,13 @@ export function parseQuery(q) {
     const fieldm = term.match(/^(name|file|type|kind|lang|language|district|ext):(.+)$/i);
     if (fieldm) {
       const k = fieldm[1].toLowerCase();
-      const v = fieldm[2].toLowerCase();
-      preds.push((b) => String(FIELDS[k](b) || '').toLowerCase().includes(v));
+      let v = fieldm[2].toLowerCase();
+      if (k === 'lang' || k === 'language') v = LANG_ALIASES[v] || v;
+      preds.push((b) => {
+        let value = String(FIELDS[k](b) || '').toLowerCase();
+        if (k === 'lang' || k === 'language') value = LANG_ALIASES[value] || value;
+        return value.includes(v);
+      });
       labels.push(`${k}~${v}`);
       continue;
     }
@@ -65,12 +71,16 @@ export function parseQuery(q) {
 const KEY = 'codecity.queries';
 
 export function loadQueries() {
-  try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; }
+  try {
+    const data = JSON.parse(localStorage.getItem(KEY) || '{}');
+    if (!data || Array.isArray(data) || typeof data !== 'object') return {};
+    return Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v === 'string'));
+  } catch { return {}; }
 }
 
 export function saveQuery(name, text) {
   const all = loadQueries();
-  all[name] = text;
-  localStorage.setItem(KEY, JSON.stringify(all));
+  Object.defineProperty(all, name, { value: String(text), enumerable: true, configurable: true });
+  try { localStorage.setItem(KEY, JSON.stringify(all)); } catch { return null; }
   return all;
 }

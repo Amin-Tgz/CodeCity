@@ -1,0 +1,44 @@
+name: Standalone binaries
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:binary
+      - name: Smoke test standalone executable
+        shell: bash
+        run: |
+          if [ -f dist/codecity.exe ]; then dist/codecity.exe --help; else dist/codecity --help; fi
+      - name: Name binary
+        shell: bash
+        run: |
+          if [ -f dist/codecity.exe ]; then mv dist/codecity.exe dist/codecity-windows-x64.exe; else mv dist/codecity dist/codecity-${{ runner.os }}-${{ runner.arch }}; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codecity-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            dist/codecity-windows-x64.exe
+            dist/codecity-Linux-*
+            dist/codecity-macOS-*
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/codecity-windows-x64.exe
+            dist/codecity-Linux-*
+            dist/codecity-macOS-*

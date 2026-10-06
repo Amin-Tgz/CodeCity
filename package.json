@@ -1,0 +1,35 @@
+{
+  "name": "codecity-viewer",
+  "version": "0.4.0",
+  "description": "Offline 3D code cities for mixed-language projects; no Python required",
+  "type": "module",
+  "bin": {
+    "codecity": "server/cli.cjs"
+  },
+  "scripts": {
+    "start": "node server/cli.cjs",
+    "test": "node tests/unit.mjs && node --test tests/server.test.cjs tests/improvements.test.cjs",
+    "build:binary": "node scripts/build-binary.cjs",
+    "build:parsers": "node scripts/build-parsers.cjs",
+    "benchmark": "node scripts/benchmark.mjs"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "files": [
+    "server",
+    "src",
+    "vendor",
+    "assets",
+    "index.html",
+    "styles.css",
+    "README.md"
+  ],
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "postject": "1.0.0-alpha.6",
+    "tree-sitter-wasms": "0.1.13",
+    "typescript": "5.9.3",
+    "web-tree-sitter": "0.20.8"
+  }
+}

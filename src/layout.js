@@ -78,3 +78,26 @@ export function inset(rect, pad) {
   const h = Math.max(rect.h - pad * 2, 0.001);
   return { x: rect.x + pad, y: rect.y + pad, w, h };
 }
+
+// Own declarations and child packages share the parent's rectangle. Missing
+// ancestors are synthesized so legacy flat models receive real containment.
+export function packageLayout(buildings,rect,weight=b=>Math.max(1,b.noa)) {
+  const nodes=new Map([['.',{key:'.',depth:0,children:new Map(),buildings:[]}]]);
+  function ensure(key) {
+    if(nodes.has(key))return nodes.get(key);
+    const parts=key.split('/'),parent=parts.length>1?parts.slice(0,-1).join('/'):'.';
+    const node={key,depth:parts.length,children:new Map(),buildings:[]};nodes.set(key,node);ensure(parent).children.set(key,node);return node;
+  }
+  for(const b of buildings)ensure(b.district||'.').buildings.push(b);
+  function total(node){node.value=node.buildings.reduce((s,b)=>s+weight(b),0);for(const child of node.children.values())node.value+=total(child);return node.value;}
+  total(nodes.get('.'));const packages=[],placed=[];
+  function visit(node,area) {
+    packages.push({item:node,rect:area});
+    const pad=Math.min(1.4,area.w*.04,area.h*.04),inner=inset(area,pad);
+    const items=[...node.children.values()].sort((a,b)=>a.key.localeCompare(b.key)).map(n=>({value:n.value,node:n}))
+      .concat([...node.buildings].sort((a,b)=>a.id.localeCompare(b.id)).map(b=>({value:weight(b),b})));
+    for(const p of treemap(items,inner))if(p.item.node)visit(p.item.node,p.rect);else placed.push({b:p.item.b,rect:p.rect,district:node.key,depth:node.depth});
+  }
+  if(buildings.length)visit(nodes.get('.'),rect);
+  return {packages,buildings:placed};
+}

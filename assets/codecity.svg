@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>CodeCity — city inside code brackets</title>
+  <rect x="2" y="2" width="124" height="124" rx="29" fill="#101c2b"/>
+  <path d="M29 42 14 64l15 22M99 42l15 22-15 22" stroke="#81e3c2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M37 91V58h15v33M56 91V33h17v58M77 91V48h15v43" fill="#6ec9ed"/>
+  <path d="M56 33h17v58H56z" fill="#d1efed"/>
+  <path d="M42 66h5m-5 9h5m14-30h7m-7 11h7m-7 11h7m-7 11h7m14-20h6m-6 11h6m-6 11h6" stroke="#15354b" stroke-width="3" stroke-linecap="round"/>
+  <path d="M35 94h59" stroke="#81e3c2" stroke-width="5" stroke-linecap="round"/>
+</svg>

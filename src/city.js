@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { treemap, inset } from './layout.js';
+import {PickingIndex} from './picking.js';
+import { treemap, inset, packageLayout } from './layout.js';
 import {
   METRICS, locColor, heatColor, districtHue, norm, heightFor, hash01,
   boxplot, categoryFor, categoryHeights, categoryFootprints,
@@ -8,7 +9,7 @@ import {
 
 function colorFor(b, cKey, cMin, cMax) {
   if (cKey === 'language') return languageColor(b.language);
-  if (cKey === 'coverage') return coverageColor(norm(Number(b.coverage ?? 0), 0, 1));
+  if (cKey === 'coverage') return b.coverage == null ? new THREE.Color('#64748b') : coverageColor(norm(Number(b.coverage), 0, 1));
   const t = norm(METRICS[cKey].get(b), cMin, cMax);
   return cKey === 'loc' ? locColor(t) : heatColor(t);
 }
@@ -27,8 +28,9 @@ const BODY_MARGIN = 0.5;
 const PLATFORM_STEP = 1.2;
 
 export class City {
-  constructor(model, scene, { onHover } = {}) {
+  constructor(model, scene, { onHover, asyncRouting=false } = {}) {
     this.model = model;
+    this.asyncRouting=asyncRouting;
     this.scene = scene;
     this.onHover = onHover;
     this.mapping = { height: 'nom', footprint: 'noa', color: 'loc', mode: 'boxplot' };
@@ -52,6 +54,9 @@ export class City {
     this.focusId = null;
     this.camera = null;
     this.querySet = null;
+    this.filterId = null;
+    this.historyFrame = null;
+    this.diffBase = null;
     this._lodDist2 = Infinity;
     this._extraMats = [];
     this._lodAcc = 0;
@@ -71,8 +76,22 @@ export class City {
   }
 
   setMapping(mapping) {
-    this.mapping = { ...this.mapping, ...mapping };
-    this.rebuild();
+    const next={...this.mapping,...mapping};
+    if(next.height===this.mapping.height&&next.footprint===this.mapping.footprint&&next.mode===this.mapping.mode) {
+      this.mapping=next;
+      const vals=METRICS[next.color]?(this.scaleReference?.buildings||this.model.buildings).map(b=>METRICS[next.color].get(b)):[0];
+      const max=vals.reduce((m,v)=>Math.max(m,v),1),min=vals.reduce((m,v)=>Math.min(m,v),max);
+      for(const e of this.byBuilding.values())for(const mat of e.materials)mat.color.copy(colorFor(e.building,next.color,min,max));
+      this._refreshAppearance();return;
+    }
+    this.mapping=next;this.rebuild();
+  }
+
+  setStructuralModel(model,reference=this.currentModel||this.model) {
+    this.currentModel=reference;this.scaleReference=reference;
+    this.layoutReference||=new Map(reference.buildings.map(b=>[b.id,b]));
+    for(const b of model.buildings)if(!this.layoutReference.has(b.id))this.layoutReference.set(b.id,b);
+    this.model=model;this.historyFrame=null;this.graph=null;this._computeDegrees();this.rebuild();
   }
 
   setStreetMode(mode) {
@@ -88,21 +107,30 @@ export class City {
     if (this.street) this.street.setFocus(this.focusId);
   }
 
+  dispose() {
+    clearTimeout(this._pulseT);
+    this.street?.dispose();
+    for (const e of this.byBuilding.values()) e.matFull.dispose();
+    this._disposeGroup(this.buildingGroup);
+    this._disposeGroup(this.platesGroup);
+    for (const mat of this._extraMats) mat.dispose();
+    this.scene.remove(this.root);
+  }
+
   setLodDistance(d) { this._lodDist2 = d * d; }
 
   // brief emissive flash on a building (used by the member drill-down)
   pulseBuilding(id) {
     const e = this.byBuilding.get(id);
     if (!e) return;
-    for (const m of e.materials) { m.emissive.set('#ffd166'); m.emissiveIntensity = 1.3; }
     clearTimeout(this._pulseT);
+    const previous = this.pulseId;
+    this.pulseId = id;
+    if (previous) this._restore(previous);
+    this._restore(id);
     this._pulseT = setTimeout(() => {
-      const sid = this.selected && this.selected.userData.buildingId;
-      for (const m of e.materials) {
-        m.emissive.copy(m.userData.baseEmissive);
-        m.emissiveIntensity = m.userData.baseIntensity;
-      }
-      if (sid) this._apply(sid, SELECT, 0.5, true);
+      this.pulseId = null;
+      this._restore(id);
     }, 900);
   }
 
@@ -124,12 +152,14 @@ export class City {
       e.far = far;
       e.body.material = far ? e.matSimple : e.matFull;
       e.body.castShadow = !far;
+      if(this.instances){this.instances.geometry.getAttribute("instanceFacade").setX(e.instanceIndex,far?0:1);this.instances.geometry.getAttribute("instanceFacade").needsUpdate=true;}
     }
   }
 
   _disposeGroup(group) {
     group.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
+      if (o.isInstancedMesh) o.dispose();
       // NOTE: building materials share the facade atlas and streets share the
       // cached road/street textures, so we only dispose the material wrappers
       // here - never the textures.
@@ -139,15 +169,21 @@ export class City {
   }
 
   rebuild() {
+    const selectedId = this.selected?.userData.buildingId;
+    clearTimeout(this._pulseT);
+    this.pulseId = null;
+    // Both LOD materials must be released, including the one not on the mesh.
+    for (const e of this.byBuilding.values()) e.matFull.dispose();
     this._disposeGroup(this.buildingGroup);
     this._disposeGroup(this.platesGroup);
     if (this.street) {
-      this.root.remove(this.street.group, this.street.walkerGroup);
+      this.root.remove(this.street.group, this.street.walkerGroup, this.street.focusGroup);
       this.street.dispose();
       this.street = null;
     }
     for (const m of this._extraMats) m.dispose();
     this._extraMats = [];
+    this.instances=null;
     this.pickables = [];
     this.byBuilding.clear();
     this.buildingMeshes.clear();
@@ -161,13 +197,14 @@ export class City {
     const cKey = this.mapping.color;
     const mode = this.mapping.mode || 'boxplot';
 
-    const hVals = buildings.map((b) => METRICS[hKey].get(b));
-    const fVals = buildings.map((b) => METRICS[fKey].get(b));
+    const reference = this.scaleReference?.buildings || buildings;
+    const hVals = reference.map((b) => METRICS[hKey].get(b));
+    const fVals = reference.map((b) => METRICS[fKey].get(b));
     const hStats = boxplot(hVals);
     const fStats = boxplot(fVals);
     const hCats = categoryHeights();
     const fCats = categoryFootprints();
-    const hMax = Math.max(1, ...hVals);
+    const hMax = hVals.reduce((max, v) => Math.max(max, v), 1);
     // footprint treemap weight + height base, per the chosen mapping mode
     const footValue = (b) => (mode === 'linear'
       ? Math.max(METRICS[fKey].get(b), 1)
@@ -177,32 +214,24 @@ export class City {
       : hCats[categoryFor(METRICS[hKey].get(b), hStats, mode, hKey)]);
 
     const isMetricColor = !!METRICS[cKey];
-    const cVals = isMetricColor ? buildings.map((b) => METRICS[cKey].get(b)) : [0];
-    const cMax = Math.max(1, ...cVals);
-    const cMin = Math.min(...cVals);
+    const cVals = isMetricColor ? reference.map((b) => METRICS[cKey].get(b)) : [0];
+    const cMax = cVals.reduce((max, v) => Math.max(max, v), 1);
+    const cMin = cVals.reduce((min, v) => Math.min(min, v), cMax);
 
-    const depthById = new Map(this.model.districts.map((d) => [d.id, d.depth || 0]));
-    const districtAgg = new Map();
-    for (const b of buildings) {
-      const d = b.district;
-      if (!districtAgg.has(d)) districtAgg.set(d, { key: d, value: 0, buildings: [], depth: depthById.get(d) || 0 });
-      const a = districtAgg.get(d);
-      a.value += footValue(b);
-      a.buildings.push(b);
-    }
-    const districts = [...districtAgg.values()].sort((a, b2) => a.key.localeCompare(b2.key));
-
-    const side = Math.min(GROUND_SIZE, Math.max(80, Math.sqrt(buildings.length) * 11));
-    const placedDistricts = treemap(districts, { x: 0, y: 0, w: side, h: side });
+    const side = Math.min(GROUND_SIZE, Math.max(80, Math.sqrt(reference.length) * 11));
+    const layout=packageLayout(this.layoutReference?[...this.layoutReference.values()]:buildings,{x:0,y:0,w:side,h:side},footValue);
+    const placedDistricts=layout.packages;
+    this.packageRects=placedDistricts.map(p=>({id:p.item.key,rect:p.rect,altitude:p.item.depth*PLATFORM_STEP}));
+    this.packageBounds=new Map(this.packageRects.map(p=>[p.id,p.rect]));
 
     placedDistricts.forEach((pd, di) => {
       const altitude = (pd.item.depth || 0) * PLATFORM_STEP;
       const dColor = districtHue(di, pd.item.depth || 0);
-      const inner = inset(pd.rect, Math.min(2.6, Math.min(pd.rect.w, pd.rect.h) * 0.07));
+      const inner = inset(pd.rect, Math.min(.5, Math.min(pd.rect.w, pd.rect.h) * 0.01));
 
       if (inner.w > 1 && inner.h > 1) {
         // curb (slightly larger, darker) + plate, raised to this package's tier
-        const curbGeo = new THREE.BoxGeometry(inner.w + 1.0, 0.35, inner.h + 1.0);
+        const curbGeo = new THREE.BoxGeometry(inner.w, 0.35, inner.h);
         const curbMat = new THREE.MeshStandardMaterial({
           color: dColor.clone().multiplyScalar(0.5), roughness: 1, metalness: 0,
         });
@@ -226,22 +255,15 @@ export class City {
         this._plateMats.push(plateMat, curbMat);
       }
 
-      const pad = Math.min(1.4, Math.min(inner.w, inner.h) * 0.035);
-      const buildingArea = inset(inner, pad);
-      if (buildingArea.w <= 0.5 || buildingArea.h <= 0.5) return;
-      const placed = treemap(
-        pd.item.buildings.map((b) => ({ value: footValue(b), b })),
-        buildingArea
-      );
-      for (const { item, rect } of placed) {
-        this._addBuilding(item.b, rect, {
-          cKey, cMin, cMax, altitude, heightBase: heightBase(item.b), flat: mode !== 'linear',
-        });
-      }
     });
+    const activeById=new Map(buildings.map(b=>[b.id,b]));
+    for(const p of layout.buildings){const b=activeById.get(p.b.id);if(b)this._addBuilding(b,p.rect,{
+      cKey,cMin,cMax,altitude:p.depth*PLATFORM_STEP,heightBase:heightBase(b),flat:mode!=='linear',
+    });}
 
-    this.street = new StreetNetwork(this.model, this.byBuilding, side, hash01);
-    this.street.build();
+    this.street = new StreetNetwork(this.model, this.byBuilding, side, hash01,this.packageRects);
+    this.ready=this.asyncRouting?this.street.buildAsync():Promise.resolve(this.street.build());
+    this.ready.catch(error=>{if(this.street?.worker){this.street.worker.terminate();this.street.worker=null;}window.dispatchEvent(new CustomEvent("routingerror",{detail:error.message}));});
     this.street.setMode(this.streetMode);
     this.street.setFocus(this.focusId);
     this.root.add(this.street.group, this.street.walkerGroup, this.street.focusGroup);
@@ -251,13 +273,18 @@ export class City {
     for (const e of this.byBuilding.values()) {
       e.world = e.center.clone().add(this.root.position);
     }
+    this.selected = this.byBuilding.get(selectedId)?.body || null;
+    this.pickingIndex=new PickingIndex(this.byBuilding.values());
+    if(buildings.length>=500)this._makeInstances();
+    this._refreshVisibility();
+    this._refreshAppearance();
   }
 
   _addBuilding(b, rect, { cKey, cMin, cMax, heightBase, flat, altitude = 0 }) {
     const group = new THREE.Group();
 
-    const w = Math.max(rect.w * BODY_FACTOR - 2 * BODY_MARGIN, 0.5);
-    const d = Math.max(rect.h * BODY_FACTOR - 2 * BODY_MARGIN, 0.5);
+    const w = Math.max(.01, Math.min(rect.w*.85,Math.max(rect.w * BODY_FACTOR - 2 * BODY_MARGIN, .5)));
+    const d = Math.max(.01, Math.min(rect.h*.85,Math.max(rect.h * BODY_FACTOR - 2 * BODY_MARGIN, .5)));
     const hVar = flat ? 1 : 0.86 + 0.28 * hash01(b.id + 'h');
     const h = Math.max(3.2, heightBase * hVar);
 
@@ -302,11 +329,41 @@ export class City {
     this.byBuilding.set(b.id, {
       group, materials: [mat, matSimple], building: b,
       body, matFull: mat, matSimple, far: false, altitude,
+      district:b.district,packageRect:this.packageBounds.get(b.district),
       center: new THREE.Vector3(rect.x + rect.w / 2, 0.62 + altitude + h / 2, rect.y + rect.h / 2),
       ground: new THREE.Vector3(rect.x + rect.w / 2, altitude + STREET_Y, rect.y + rect.h / 2),
       half: { w: w / 2, d: d / 2 },
     });
     this.buildingMeshes.set(b.id, group);
+  }
+
+  _makeInstances() {
+    const count=this.byBuilding.size,geometry=new THREE.BoxGeometry(1,1,1);
+    geometry.setAttribute('instanceOpacity',new THREE.InstancedBufferAttribute(new Float32Array(count).fill(1),1));
+    geometry.setAttribute('instanceGlow',new THREE.InstancedBufferAttribute(new Float32Array(count*3),3));
+    geometry.setAttribute('instanceFacade',new THREE.InstancedBufferAttribute(new Float32Array(count).fill(1),1));
+    const material=new THREE.MeshStandardMaterial({map:this._facade.map,roughness:.72,metalness:.08,alphaHash:true});
+    material.onBeforeCompile=shader=>{
+      shader.vertexShader='attribute float instanceOpacity; attribute float instanceFacade; attribute vec3 instanceGlow; varying float vInstanceOpacity; varying float vInstanceFacade; varying vec3 vInstanceGlow;\n'+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvInstanceOpacity=instanceOpacity;vInstanceGlow=instanceGlow;vInstanceFacade=instanceFacade;');
+      shader.fragmentShader='varying float vInstanceOpacity; varying float vInstanceFacade; varying vec3 vInstanceGlow;\n'+shader.fragmentShader;
+      shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a *= vInstanceOpacity;');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','if(vInstanceFacade > 0.5) {\n#include <map_fragment>\n}');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance += vInstanceGlow;');
+    };
+    this.instances=new THREE.InstancedMesh(geometry,material,count);this.instances.receiveShadow=true;this.instances.castShadow=false;
+    this.buildingGroup.add(this.instances);let i=0;
+    for(const e of this.byBuilding.values()){e.instanceIndex=i++;e.body.visible=false;this._syncInstance(e);}
+    this.instances.computeBoundingBox();this.instances.computeBoundingSphere();
+  }
+
+  _syncInstance(e) {
+    const mesh=this.instances;if(!mesh||e.instanceIndex==null)return;
+    const matrix=new THREE.Matrix4(),p=new THREE.Vector3(e.center.x,e.body.position.y,e.center.z),size=new THREE.Vector3(e.half.w*2,e.body.geometry.parameters.height*e.body.scale.y,e.half.d*2);
+    if(!e.group.visible)size.set(0,0,0);matrix.compose(p,new THREE.Quaternion(),size);mesh.setMatrixAt(e.instanceIndex,matrix);mesh.instanceMatrix.needsUpdate=true;
+    const m=e.matFull;mesh.setColorAt(e.instanceIndex,m.color);mesh.instanceColor.needsUpdate=true;
+    const opacity=mesh.geometry.getAttribute('instanceOpacity'),glow=mesh.geometry.getAttribute('instanceGlow');
+    opacity.setX(e.instanceIndex,m.opacity);opacity.needsUpdate=true;glow.setXYZ(e.instanceIndex,m.emissive.r*m.emissiveIntensity,m.emissive.g*m.emissiveIntensity,m.emissive.b*m.emissiveIntensity);glow.needsUpdate=true;
   }
 
   _apply(id, color, intensity, force) {
@@ -320,113 +377,120 @@ export class City {
   }
 
   _restore(id) {
+    this.revision=(this.revision||0)+1;
     const e = this.byBuilding.get(id);
     if (!e) return;
-    const on = this.querySet && this.querySet.has(id);
-    for (const m of e.materials) {
-      if (on) { m.emissive.set('#38bdf8'); m.emissiveIntensity = 0.55; }
-      else { m.emissive.copy(m.userData.baseEmissive); m.emissiveIntensity = m.userData.baseIntensity; }
+    let color = null;
+    let intensity = 0;
+    let opacity = 1;
+    if (this.diffBase) {
+      const prev = this.diffBase.get(id);
+      const delta = e.building.comparison_status==='removed'?-prev.loc:prev ? e.building.loc - prev.loc : null;
+      color = new THREE.Color(delta === null || delta < 0 ? '#22c55e' : delta > 0 ? '#ef4444' : '#64748b');
+      intensity = delta === 0 ? 0.12 : 0.8;
+      if(e.building.comparison_status==='changed'&&delta===0){color=new THREE.Color('#f59e0b');intensity=.8;}
+      else if (delta === 0) opacity = 0.35;
     }
+    if (this.querySet) {
+      if (this.querySet.has(id)) { color = HOVER; intensity = 0.55; }
+      else opacity = 0.12;
+    }
+    if (id === this.hoveredId) { color = HOVER; intensity = 0.45; }
+    if (id === this.selected?.userData.buildingId) { color = SELECT; intensity = 0.5; }
+    if (id === this.pulseId) { color = new THREE.Color('#ffd166'); intensity = 1.3; }
+    for (const m of e.materials) {
+      m.emissive.copy(color || m.userData.baseEmissive);
+      m.emissiveIntensity = color ? intensity : m.userData.baseIntensity;
+      m.transparent = opacity < 1;
+      m.opacity = opacity;
+    }
+    if(this.instances)this._syncInstance(e);
+  }
+
+  _refreshAppearance() {
+    for (const id of this.byBuilding.keys()) this._restore(id);
   }
 
   // Compare mode: tint by LOC delta against a baseline model (red grew,
   // green shrank, grey unchanged, brighter green = new).
   applyDiff(baseMap) {
     this.diffActive = true;
-    for (const [id, e] of this.byBuilding) {
-      const prev = baseMap.get(id);
-      let col = '#22c55e';
-      let inten = 0.8;
-      let dim = false;
-      if (prev) {
-        const dl = (e.building.loc || 0) - (prev.loc || 0);
-        col = dl > 0 ? '#ef4444' : dl < 0 ? '#22c55e' : '#64748b';
-        dim = dl === 0;
-        inten = dim ? 0.12 : 0.8;
-      }
-      for (const m of e.materials) {
-        m.emissive.set(col);
-        m.emissiveIntensity = inten;
-        m.transparent = dim;
-        m.opacity = dim ? 0.35 : 1;
-      }
-    }
+    this.diffBase = baseMap;
+    this._refreshAppearance();
   }
 
   clearDiff() {
     this.diffActive = false;
-    this.querySet = null;
-    for (const [, e] of this.byBuilding) {
-      for (const m of e.materials) {
-        m.emissive.copy(m.userData.baseEmissive);
-        m.emissiveIntensity = m.userData.baseIntensity;
-        m.transparent = false;
-        m.opacity = 1;
-      }
-    }
+    this.diffBase = null;
+    this._refreshAppearance();
   }
 
   // Tagging (paper's colour + transparency): dim everything except `ids`, which
   // are tinted. Pass null to clear.
   highlightSubset(ids) {
-    const set = ids ? new Set(ids) : null;
-    this.querySet = set;
-    for (const [id, e] of this.byBuilding) {
-      const on = !set || set.has(id);
-      for (const m of e.materials) {
-        if (set) {
-          m.transparent = true;
-          m.opacity = on ? 1 : 0.12;
-          if (on) { m.emissive.set('#38bdf8'); m.emissiveIntensity = 0.55; }
-          else { m.emissive.copy(m.userData.baseEmissive); m.emissiveIntensity = 0; }
-        } else {
-          m.transparent = false;
-          m.opacity = 1;
-          m.emissive.copy(m.userData.baseEmissive);
-          m.emissiveIntensity = m.userData.baseIntensity;
-        }
-      }
-    }
+    this.querySet = ids ? new Set(ids) : null;
+    this._refreshAppearance();
   }
 
   hover(ndc, camera) {
     this.raycaster.setFromCamera(ndc, camera);
-    const hits = this.raycaster.intersectObjects(this.pickables, false);
+    const hits = this.raycaster.intersectObjects((this.pickingIndex?.candidates(this.raycaster.ray,this.root.position,this.groundSide)||this.pickables.filter((o)=>o.parent.visible)), false);
     const hit = hits.length ? hits[0].object : null;
     const id = hit ? hit.userData.buildingId : null;
 
-    if (this.hoveredId && this.hoveredId !== id) {
-      if (this.hoveredId !== (this.selected && this.selected.userData.buildingId)) {
-        this._restore(this.hoveredId);
-      } else {
-        this._apply(this.hoveredId, SELECT, 0.5, true);
-      }
-    }
-    if (id && id !== this.hoveredId && id !== (this.selected && this.selected.userData.buildingId)) {
-      this._apply(id, HOVER, 0.45, true);
-    }
+    const prev = this.hoveredId;
     this.hoveredId = id;
+    if (prev) this._restore(prev);
+    if (id) this._restore(id);
     if (this.onHover) this.onHover(id ? this.byBuilding.get(id).building : null, hit);
     return hit;
   }
 
   select(hit) {
     const prev = this.selected && this.selected.userData.buildingId;
-    if (prev) this._restore(prev);
     this.selected = hit || null;
+    if (prev) this._restore(prev);
+    this.setFocusBuilding(hit?.userData.buildingId);
     if (!this.selected) return null;
-    this._apply(this.selected.userData.buildingId, SELECT, 0.5, true);
+    this._restore(this.selected.userData.buildingId);
     const e = this.byBuilding.get(this.selected.userData.buildingId);
     return e ? e.building : null;
   }
 
   applyFilter(districtId) {
+    this.filterId = districtId || null;
+    this._refreshVisibility();
+  }
+
+  setHistoryFrame(frame, finalFiles) {
+    this.historyFrame = frame;
+    this.finalFiles = finalFiles;
+    this._refreshVisibility();
+  }
+
+  _refreshVisibility() {
+    this.revision=(this.revision||0)+1;
+    const districtId = this.filterId;
     for (const [, e] of this.byBuilding) {
-      e.group.visible = !districtId || e.building.district === districtId;
+      const frame = this.historyFrame;
+      const loc = frame?.files[e.building.file] || 0;
+      const finalLoc = this.finalFiles?.[e.building.file] || 0;
+      e.group.visible = (!districtId || (districtId==='.' || e.building.district === districtId || e.building.district.startsWith(districtId+'/'))) && (!frame || loc > 0);
+      const ratio = frame ? Math.max(0.05, Math.min(1.25, loc / (finalLoc || loc || 1))) : 1;
+      const h = e.body.geometry.parameters.height * ratio;
+      e.body.scale.y = ratio;
+      e.body.position.y = 0.62 + e.altitude + h / 2;
+      e.center.y = e.body.position.y;
+      if (e.world) e.world.y = e.center.y;
     }
+    if(this.instances)for(const e of this.byBuilding.values())this._syncInstance(e);
     for (const plate of this.platesGroup.children) {
-      plate.visible = !districtId || plate.userData.district === districtId;
+      plate.visible = !districtId || districtId==='.' || plate.userData.district === districtId || plate.userData.district.startsWith(districtId+'/') || districtId.startsWith(plate.userData.district+'/') || plate.userData.district==='.';
     }
+    const visible = new Set([...this.byBuilding].filter(([, e]) => e.group.visible).map(([id]) => id));
+    if (this.street) this.street.setVisibleBuildings(visible);
+    if (this.hoveredId && !visible.has(this.hoveredId)) this.hoveredId = null;
+    if (this.selected && !visible.has(this.selected.userData.buildingId)) this.select(null);
   }
 
   focusOn(buildingId) {

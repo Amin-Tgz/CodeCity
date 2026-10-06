@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CodeCity · 3D code map</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d4ed8'/%3E%3Cpath d='M8 22V12l5-3 5 3v10l-5 3z' fill='%2338bdf8'/%3E%3Cpath d='M18 22v-7l6-3v10z' fill='%23bfdbfe'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="./assets/codecity.svg" />
   <link rel="stylesheet" href="./styles.css" />
   <script type="importmap">
   {
@@ -22,7 +22,7 @@
   <!-- top bar -->
   <header id="topbar">
     <div class="brand">
-      <span class="logo">◳</span>
+      <img class="logo" src="./assets/codecity.svg" alt="CodeCity" width="38" height="38" />
       <div class="brand-text">
         <div class="title">CodeCity</div>
         <div id="source-badge" class="badge">—</div>
@@ -32,12 +32,45 @@
     <div id="stats" class="stats"></div>
 
     <div class="top-actions">
+      <button id="history-toggle" class="mini-btn" hidden>Build history</button>
+      <button id="auto-hide-panels" class="mini-btn" aria-pressed="false" title="Auto-hide panels">Auto-hide</button>
+      <button id="project-menu-btn" class="mini-btn" aria-expanded="false" aria-controls="project-menu">Project</button>
+      <select id="ui-language" aria-label="Interface language">
+        <option value="en">English</option><option value="es">Español</option>
+        <option value="fr">Français</option><option value="de">Deutsch</option>
+        <option value="zh">中文</option><option value="ja">日本語</option>
+        <option value="ar">العربية</option><option value="fa">فارسی</option>
+      </select>
       <button id="list-btn" class="icon-btn-lg" title="building list (accessibility)" aria-label="toggle building list">☰</button>
-      <button id="auto-rotate" class="icon-btn-lg" title="auto-orbit">⟳</button>
-      <button id="reset-view" class="icon-btn-lg" title="reset view">⌂</button>
-      <button id="help-btn" class="icon-btn-lg" title="help (?)">?</button>
+      <button id="auto-rotate" class="icon-btn-lg" title="auto-orbit" aria-label="toggle auto-orbit">⟳</button>
+      <button id="reset-view" class="icon-btn-lg" title="reset view" aria-label="reset camera">⌂</button>
+      <button id="help-btn" class="icon-btn-lg" title="help (?)" aria-label="open help" aria-controls="help" aria-expanded="false">?</button>
     </div>
   </header>
+
+  <nav id="project-menu" hidden aria-label="Project">
+    <button id="project-open" class="mini-btn">Open project…</button>
+    <div class="panel-title">Open recent</div>
+    <div id="project-recent"></div>
+    <button id="project-close" class="mini-btn">Close project</button>
+    <div id="project-status" class="muted-note" role="status"></div>
+  </nav>
+
+  <dialog id="folder-dialog" aria-labelledby="folder-title">
+    <form id="folder-form">
+      <header class="details-head"><b id="folder-title">Open project</b><button type="button" id="folder-cancel" class="icon-btn" aria-label="Cancel">×</button></header>
+      <label for="folder-path">Project folder</label>
+      <div class="query-actions"><input id="folder-path" type="text" spellcheck="false" dir="ltr" required /><button type="button" id="folder-browse" class="mini-btn">Browse</button></div>
+      <div id="folder-roots" class="query-actions"></div>
+      <button type="button" id="folder-parent" class="mini-btn">Parent folder</button>
+      <div id="folder-list"></div>
+      <p id="folder-error" role="alert"></p>
+      <p id="folder-progress" class="muted-note" role="status"></p>
+      <p class="muted-note">Choose a folder. CodeGraph and project dependencies are not required.</p>
+      <button id="folder-submit" type="submit" class="mini-btn">Open this folder</button>
+    </form>
+  </dialog>
+  <div id="empty-city" hidden><b>No project open</b><span>Open a project to build its city.</span><button id="empty-open" class="mini-btn">Open project…</button></div>
 
   <!-- left control panel -->
   <aside id="controls">
@@ -67,7 +100,7 @@
         <button id="query-save" class="mini-btn">save…</button>
         <select id="query-saved" title="saved queries"></select>
       </div>
-      <div id="query-count" class="muted-note"></div>
+      <div id="query-count" class="muted-note" role="status"></div>
     </div>
 
     <div class="panel-title">Map metrics</div>
@@ -108,16 +141,9 @@
       <div id="timeline-host" class="timeline-host"></div>
     </div>
 
-    <div class="panel-title">Export / compare</div>
-    <div class="query-actions">
-      <button id="export-png" class="mini-btn">PNG</button>
-      <button id="export-json" class="mini-btn">model</button>
-      <button id="compare-btn" class="mini-btn">compare…</button>
-      <button id="compare-clear" class="mini-btn">clear</button>
-    </div>
-    <input id="compare-file" type="file" accept="application/json,.json" style="display:none" />
-    <div id="compare-count" class="muted-note"></div>
-
+    <div class="panel-title">Investigate</div>
+    <div id="investigations"></div>
+    <details><summary>Package minimap</summary><div id="minimap"></div></details>
     <div class="panel-title">Layers</div>
     <div class="ctrl-row">
       <label for="sel-streets">streets</label>
@@ -129,6 +155,7 @@
     </div>
     <div class="toggles">
       <label class="pill"><input type="checkbox" id="chk-grid" checked /><span>grid</span></label>
+      <label class="pill"><input type="checkbox" id="pause-motion" /><span>pause motion</span></label>
     </div>
   </aside>
 
@@ -152,7 +179,7 @@
   <div id="details"></div>
 
   <!-- help tab -->
-  <div id="help">
+  <div id="help" role="dialog" aria-modal="true" aria-label="Help: reading the city">
     <div class="help-card">
       <header class="help-head">
         <div>
@@ -276,14 +303,14 @@
         <p class="help-note">Metrics are exact when built from a CodeGraph
         index and <b>estimates</b> when built by the source scanner
         (<code>--source scan</code>), which approximates per-class methods,
-        attributes and LOC with regexes.</p>
+        attributes and LOC. Python uses the standard-library parser;
+        JS/TS and other languages use estimates from regexes.</p>
       </div>
     </div>
   </div>
 
   <div id="citylist" role="region" aria-label="Buildings list"></div>
 
-  <div id="infra"></div>
 
   <div id="tooltip"></div>
 

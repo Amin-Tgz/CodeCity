@@ -28,15 +28,19 @@ def main(argv=None) -> int:
     vendor = here / "vendor"
     vendor.mkdir(parents=True, exist_ok=True)
 
+    downloads = {}
     for name, url in FILES.items():
         target = vendor / name
-        if target.exists() and target.stat().st_size > 0:
+        if not argv and target.exists() and target.stat().st_size > 0:
             print(f"[codecity] skip {name} (already present)")
             continue
         full = url.format(v=version)
         print(f"[codecity] GET  {full}")
         with urllib.request.urlopen(full, timeout=60) as resp:
             data = resp.read()
+        downloads[target] = data
+    # Download the entire requested pair before replacing either existing file.
+    for target, data in downloads.items():
         target.write_bytes(data)
         print(f"[codecity] saved {target} ({len(data) / 1024:.0f} KiB)")
 

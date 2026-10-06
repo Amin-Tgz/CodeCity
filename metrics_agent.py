@@ -18,18 +18,34 @@ import json
 import socketserver
 import sys
 import time
+import threading
 
 _last_cpu = None  # (idle, total) for the delta-based CPU calculation
+_cpu_lock = threading.Lock()
+
+
+def _cpu_percent(idle, total):
+    """A process-wide sample, shared by HTTP request threads."""
+    global _last_cpu
+    with _cpu_lock:
+        previous = _last_cpu
+        _last_cpu = (idle, total)
+        if previous is None or total <= previous[1]:
+            return -1
+        di, dt = idle - previous[0], total - previous[1]
+        return round(max(0.0, min(100.0, 100.0 * (1 - di / dt))))
 
 
 def _cpu_ram() -> dict:
-    global _last_cpu
     # preferred: psutil
     try:
         import psutil  # type: ignore
         vm = psutil.virtual_memory()
+        times = psutil.cpu_times()
+        total = sum(times) - getattr(times, 'guest', 0) - getattr(times, 'guest_nice', 0)
+        idle = times.idle + getattr(times, 'iowait', 0)
         return {
-            "cpu_pct": round(psutil.cpu_percent(interval=None)),
+            "cpu_pct": _cpu_percent(idle, total),
             "ram_pct": round(vm.percent),
             "ram_used_mb": round(vm.used / 1048576),
             "ram_total_mb": round(vm.total / 1048576),
@@ -55,16 +71,10 @@ def _cpu_ram() -> dict:
         user = ctypes.c_ulonglong()
         ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kernel), ctypes.byref(user))
         total = kernel.value + user.value
-        cpu = None
-        if _last_cpu is not None:
-            di = idle.value - _last_cpu[0]
-            dt = total - _last_cpu[1]
-            if dt > 0:
-                cpu = round(max(0.0, min(100.0, 100.0 * (1 - di / dt))))
-        _last_cpu = (idle.value, total)
+        cpu = _cpu_percent(idle.value, total)
         used = st.ullTotalPhys - st.ullAvailPhys
         return {
-            "cpu_pct": cpu if cpu is not None else -1,
+            "cpu_pct": cpu,
             "ram_pct": st.dwMemoryLoad,
             "ram_used_mb": round(used / 1048576),
             "ram_total_mb": round(st.ullTotalPhys / 1048576),
@@ -75,14 +85,8 @@ def _cpu_ram() -> dict:
             parts = f.readline().split()[1:]
         vals = [int(x) for x in parts]
         idle = vals[3] + (vals[4] if len(vals) > 4 else 0)
-        total = sum(vals)
-        cpu = None
-        if _last_cpu is not None:
-            di = idle - _last_cpu[0]
-            dt = total - _last_cpu[1]
-            if dt > 0:
-                cpu = round(max(0.0, min(100.0, 100.0 * (1 - di / dt))))
-        _last_cpu = (idle, total)
+        total = sum(vals[:8])  # guest times are already included in user/nice
+        cpu = _cpu_percent(idle, total)
         mem = {}
         with open("/proc/meminfo") as f:
             for line in f:
@@ -91,7 +95,7 @@ def _cpu_ram() -> dict:
         tot = mem.get("MemTotal", 1)
         avail = mem.get("MemAvailable", mem.get("MemFree", 0))
         return {
-            "cpu_pct": cpu if cpu is not None else -1,
+            "cpu_pct": cpu,
             "ram_pct": round(100 * (tot - avail) / tot),
             "ram_used_mb": round((tot - avail) / 1024),
             "ram_total_mb": round(tot / 1024),

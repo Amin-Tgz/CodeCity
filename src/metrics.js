@@ -5,7 +5,7 @@ export const METRICS = {
   nom: { label: 'methods (NOM)', short: 'NOM', get: (b) => b.nom },
   noa: { label: 'attributes (NOA)', short: 'NOA', get: (b) => b.noa },
   loc: { label: 'lines of code (LOC)', short: 'LOC', get: (b) => b.loc },
-  deps: { label: 'dependencies', short: 'DEPS', get: (b) => b.deps || 1 },
+  deps: { label: 'dependencies', short: 'DEPS', get: (b) => b.deps || 0 },
 };
 
 export const METRIC_KEYS = Object.keys(METRICS);
@@ -163,14 +163,14 @@ export function heightFor(value, maxValue) {
 
 export function makeRampCanvas(ramp) {
   const cv = document.createElement('canvas');
-  cv.width = 16;
-  cv.height = 128;
+  cv.width = 128;
+  cv.height = 16;
   const ctx = cv.getContext('2d');
-  for (let y = 0; y < 128; y++) {
-    const t = 1 - y / 127;
+  for (let x = 0; x < 128; x++) {
+    const t = x / 127;
     const c = ramp(t);
-    ctx.fillStyle = `rgb(${(c.r * 255) | 0},${(c.g * 255) | 0},${(c.b * 255) | 0})`;
-    ctx.fillRect(0, y, 16, 1);
+    ctx.fillStyle = `#${c.getHexString()}`;
+    ctx.fillRect(x, 0, 1, 16);
   }
   return cv;
 }
