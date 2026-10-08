@@ -59,6 +59,8 @@ export function initTimeline(history,city,{status,onPlaying=()=>{},onModelChange
   };
   play.onclick=quick.onclick=toggle;
   const language=()=>{buttons();apply(Number(range.value));translate(host);};
+  const uiMode=()=>{if(document.documentElement.dataset.mode==='simple'&&(timer!==null||Number(range.value)!==frames.length)){stop();range.value=range.max;apply(frames.length);}};
+  window.addEventListener('modechange',uiMode);
   window.addEventListener('languagechange',language);buttons();apply(frames.length);translate(host);
-  return ()=>{disposed=true;sequence++;stop();quick.onclick=null;window.removeEventListener('languagechange',language);};
+  return ()=>{disposed=true;sequence++;stop();quick.onclick=null;window.removeEventListener('languagechange',language);window.removeEventListener('modechange',uiMode);};
 }

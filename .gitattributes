@@ -1,0 +1,2 @@
+# Shell installers must remain executable on Unix when checked out from Windows.
+*.sh text eol=lf

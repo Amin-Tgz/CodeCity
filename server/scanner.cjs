@@ -4,10 +4,11 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {parse:parseJS} = require('./js-parser.cjs');
 const languageParsers=require('./language-parsers.cjs');
+const {matcher,validateRules}=require('./exclusions.cjs');
 const SKIP = new Set(['.git','.hg','.svn','.codegraph','node_modules','vendor','third_party','__pycache__','.venv','venv','env','.next','dist','build','out','output','coverage','target','bin','obj','.gradle','.idea','.cache','.tox','.playwright-mcp']);
 const GROUPS = {
   python:'py pyi pyw', javascript:'js jsx mjs cjs', typescript:'ts tsx mts cts',
-  c:'c h', cpp:'cpp cc cxx hpp hh hxx ino', csharp:'cs', java:'java', kotlin:'kt kts',
+  c:'c h', cpp:'cpp cc cxx hpp hh hxx ino ipp inl tpp tcc', csharp:'cs', java:'java', kotlin:'kt kts',
   go:'go', rust:'rs', ruby:'rb rake', php:'php phtml', swift:'swift', scala:'scala sc',
   vue:'vue', svelte:'svelte', qml:'qml', qt:'ui qrc', html:'html htm', css:'css scss sass less',
   dart:'dart', objectivec:'m mm', shell:'sh bash zsh fish', powershell:'ps1 psm1',
@@ -28,6 +29,7 @@ function language(file) { return EXT[path.extname(file).toLowerCase()] || 'other
 function isSource(file, text) {
   const ext = path.extname(file).toLowerCase();
   if (['config','markdown'].includes(language(file))) return false;
+  if(['.txt','.rst','.snap','.lock'].includes(ext)&&!/^CMakeLists\.txt$/i.test(path.basename(file)))return false;
   return !!EXT[ext] || /^(Dockerfile|Makefile|CMakeLists\.txt|Rakefile)$/i.test(path.basename(file)) ||
     /\b(class|function|def|func|fn|module|package|import|include)\s+\w/.test(text);
 }
@@ -58,11 +60,11 @@ function imports(text, lang) {
   return [...found];
 }
 function analyzeFile(file, text) {
-  const lang = language(file), lines = text.split(/\r?\n/);
+  const lang = path.extname(file).toLowerCase()==='.h'&&/\b(namespace|class|template)\s|::/.test(text)?'cpp':language(file), lines = text.split(/\r?\n/);
   if (lines.at(-1) === '') lines.pop();
   const loc = lines.length;
   if(['javascript','typescript'].includes(lang)) return parseJS(file,text);
-  const syntax=languageParsers.parse(file,text,lang);if(syntax)return {...syntax,imports:imports(text,lang)};
+  const syntax=languageParsers.parse(file,text,lang);if(syntax)return {...syntax,imports:syntax.imports||imports(text,lang)};
   const district = normalize(path.dirname(file));
   const members = [];
   for (let i=0;i<lines.length;i++) {
@@ -99,10 +101,14 @@ function analyzeFile(file, text) {
   const outside=members.filter(m=>!classes.some(c=>m.line>c.start && m.line<=c.end));
   const remainder=lines.filter((line,i)=>line.trim()&&!classes.some(c=>i>=c.start&&i<c.end)).length;
   if(!classes.length || outside.length || remainder) buildings.push(make(path.basename(file),'module',1,classes.length?remainder:loc,outside,classes.length?0:attrs.size));
+  const seen=new Map();for(const b of buildings){const id=b.id,count=seen.get(id)||0;seen.set(id,count+1);if(count)b.id+='#'+(count+1);}
   return {file,lang,loc,buildings,imports:imports(text,lang),text};
 }
-function modelFromFiles(files, root) {
-  const model=emptyModel(root), parsed=files.map(f=>analyzeFile(normalize(f.file),f.text));
+function modelFromFiles(files, root, options={}) {
+  const rules=validateRules(options.exclusions),exclude=matcher(rules),unique=new Map(),duplicates=[];
+  for(const f of files){const file=path.posix.normalize(normalize(f.file));if(exclude.file(file))continue;if(unique.has(file)){duplicates.push(file);continue;}unique.set(file,{file,text:f.text});}
+  const model=emptyModel(root), parsed=[...unique.values()].map(f=>analyzeFile(f.file,f.text));
+  if(duplicates.length)model.meta.warnings.push(`Ignored ${duplicates.length} repeated source paths.`);
   const byFile=new Map(parsed.map(f=>[f.file,f]));
   const aliases=new Map();
   const alias = (name, file) => { if(!aliases.has(name)) aliases.set(name,file); else if(aliases.get(name)!==file) aliases.set(name,null); };
@@ -140,12 +146,23 @@ function modelFromFiles(files, root) {
     return aliases.get(ref)||null;
   };
   const roads=new Map();
+  const resolveInclude=require('./cpp-includes.cjs').createResolver(parsed,options.compilation);
+  const dependencies={references:0,resolved:0,unresolved:0,ambiguous:0,compilationDatabase:options.compilation?.source||null,byLanguage:{},samples:[]};
   for(const f of parsed) for(const ref of f.imports) {
-    const target=resolve(f,ref); if(!target||target===f.file) continue;
+    const include=f.includes?.find(i=>i.ref===ref);
+    const result=include?resolveInclude(f,include):{target:resolve(f,ref),reason:'local module reference',confidence:'low'};
+    const target=result.target;
+    dependencies.references++;
+    const status=target?'resolved':result.candidates?.length?'ambiguous':'unresolved';dependencies[status]++;
+    const counts=dependencies.byLanguage[f.lang]||={references:0,resolved:0,unresolved:0,ambiguous:0};counts.references++;counts[status]++;
+    const record={file:f.file,language:f.lang,ref,line:include?.line,status,target,reason:result.reason,candidates:result.candidates};
+    if(status!=='resolved'&&dependencies.samples.length<200&&dependencies.samples.filter(s=>s.language===f.lang).length<50)dependencies.samples.push(record);
+    if(options.trace||process.env.CODECITY_TRACE==='1')console.error(JSON.stringify({event:'dependency',...record}));
+    if(!target||target===f.file) continue;
     const a=f.buildings.find(b=>b.kind==='module')||f.buildings[0];
-    const b=byFile.get(target)?.buildings[0]; if(!a||!b) continue;
+    const targetFile=byFile.get(target),b=include?(targetFile?.buildings.find(b=>b.kind==='module')||targetFile?.buildings[0]):targetFile?.buildings[0]; if(!a||!b) continue;
     const key=a.id+'\0'+b.id;
-    if(!roads.has(key)) roads.set(key,{a:a.id,b:b.id,kind:'import',weight:1});
+    if(!roads.has(key)) roads.set(key,{a:a.id,b:b.id,kind:include?'include':'import',weight:1,confidence:result.confidence,evidence:[{file:f.file,line:include?.line||f.importBindings?.find(i=>i.ref===ref)?.line,ref,description:result.reason}]});
   }
   const ownerFile=new Map(parsed.flatMap(f=>f.buildings.map(b=>[b.id,f])));
   // The compiler checker resolves aliases/re-exports and respects lexical shadowing.
@@ -168,6 +185,14 @@ function modelFromFiles(files, root) {
   }
   const stableIds=new Map();for(const b of model.buildings){const id=b.kind==='module'?`${b.file}::module`:b.id;stableIds.set(b.id,id);b.id=id;}
   for(const r of model.roads){r.a=stableIds.get(r.a);r.b=stableIds.get(r.b);}
+  const beforeBuildings=model.buildings.length,beforeRoads=model.roads.length;
+  const excluded=b=>{const canonical=options.canonicalFiles?.get(b.file);return exclude.building(b)||!!canonical&&exclude.building({...b,file:canonical,id:canonical+b.id.slice(b.file.length)});};
+  const removed=model.buildings.filter(excluded);
+  model.buildings=model.buildings.filter(b=>!excluded(b));
+  const kept=new Set(model.buildings.map(b=>b.id));model.roads=model.roads.filter(r=>kept.has(r.a)&&kept.has(r.b));
+  model.meta.totals.loc=Math.max(0,model.meta.totals.loc-removed.reduce((sum,b)=>sum+b.loc,0));
+  model.meta.exclusions={rules,excludedFiles:files.length-unique.size-duplicates.length,excludedBuildings:beforeBuildings-model.buildings.length,excludedRoads:beforeRoads-model.roads.length};
+  model.meta.dependencies=dependencies;
   model.meta.schemaVersion=2;
   model.meta.analysis={source:'scan',version:'2',parsers:[...new Set(model.buildings.map(b=>b.analysis.parser))],limitations:['Languages without bundled grammars use estimated adapters.','Generated classification uses file/header markers.','Only statically resolved local references are represented.']};
   model.meta.precision='mixed';
@@ -188,17 +213,19 @@ function modelFromFiles(files, root) {
   Object.assign(model.meta.totals,{buildings:model.buildings.length,districts:model.districts.length,roads:model.roads.length,nodes:model.buildings.length,edges:model.roads.length});
   return model;
 }
-async function scan(root) {
+async function scan(root,options={}) {
+  const started=Date.now();
   root=await fs.realpath(path.resolve(root));
   if(!(await fs.stat(root)).isDirectory()) throw Error('Choose a project folder.');
   await languageParsers.initialize();
-  const files=[],warnings=[];
+  const rules=validateRules(options.exclusions),exclude=matcher(rules),files=[],warnings=[];let excludedFiles=0;
   async function walk(dir) {
     let entries; try {entries=await fs.readdir(dir,{withFileTypes:true});} catch {warnings.push(`Cannot read ${path.relative(root,dir)}`);return;}
     entries.sort((a,b)=>a.name.localeCompare(b.name));
     for(const e of entries) {
       if(e.isSymbolicLink()) continue;
       const full=path.join(dir,e.name),file=normalize(path.relative(root,full));
+      if(exclude.file(file,e.isDirectory())){excludedFiles++;continue;}
       if(e.isDirectory()) {if(!SKIP.has(e.name)&&!e.name.startsWith('.')) await walk(full);continue;}
       if(!e.isFile()||files.length>=MAX_FILES) continue;
       try {
@@ -210,10 +237,16 @@ async function scan(root) {
     }
   }
   await walk(root);
-  const model=modelFromFiles(files,root);
+  const walked=Date.now();
+  const compilation=await require('./cpp-includes.cjs').readCompileCommands(root,warnings);
+  const model=modelFromFiles(files,root,{exclusions:rules,compilation,trace:options.trace});
+  model.meta.exclusions.excludedPaths=excludedFiles;
   if(files.length>=MAX_FILES) warnings.push(`Scan limited to ${MAX_FILES} files.`);
-  model.meta.warnings=warnings;
+  model.meta.warnings.push(...warnings);
+  const analyzed=Date.now();
   Object.assign(model.meta,await require('./history.cjs').readHistory(root,model.buildings.map(b=>b.file)));
+  model.meta.scan={files:files.length,walkMs:walked-started,analysisMs:analyzed-walked,historyMs:Date.now()-analyzed,totalMs:Date.now()-started};
+  if(options.trace||process.env.CODECITY_TRACE==='1')console.error(JSON.stringify({event:'scan-complete',root,...model.meta.scan,totals:model.meta.totals}));
   return model;
 }
 module.exports={scan,emptyModel,modelFromFiles,analyzeFile,imports,isSource,SKIP,MAX_BYTES};

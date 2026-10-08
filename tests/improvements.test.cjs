@@ -84,6 +84,7 @@ test('5. Real commit snapshots restore deleted classes, old calls and member bou
   const kept=a.buildings.find(b=>b.name==='Kept');assert.equal(kept.id,b.buildings.find(b=>b.name==='Kept').id);assert.equal(kept.id,c.buildings.find(b=>b.name==='Kept').id);assert.equal(kept.file,'old.ts');
   assert.equal(kept.members[0].end_line,4);assert.ok(a.buildings.some(b=>b.name==='Deleted'));assert.ok(!c.buildings.some(b=>b.name==='Deleted'));
   assert.ok(a.roads.some(r=>r.kind==='call'));assert.equal(c.roads.length,0);assert.ok(a.meta.snapshotSources['old.ts'].includes('Deleted'));
+  const excluded=await readSnapshot(path.join(root,'nested'),first,{exclusions:[{kind:'symbol',value:'renamed.ts::class:Kept'}]});assert.ok(!excluded.buildings.some(b=>b.name==='Kept'));assert.ok(excluded.buildings.some(b=>b.name==='Deleted'));
   const {diffAgainst}=await import('../src/compare.js');const diff=diffAgainst(c,a);assert.ok(diff.stats.removed>=1);assert.ok(diff.stats.changed>=1);
   const history=await require('../server/history.cjs').readHistory(path.join(root,'nested'),['renamed.ts','entry.ts']);assert.equal(history.churn['renamed.ts'],3,'rename should retain earlier file-touch evidence');
 });

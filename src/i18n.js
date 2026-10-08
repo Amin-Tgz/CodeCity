@@ -4,6 +4,14 @@ export const locales=['en','es','fr','de','zh','ja','ar','fa'];
 let locale='en';
 // Entries: Spanish, French, German, Chinese, Japanese, Arabic, Persian.
 const messages={
+  'pause motion':['pausar movimiento','mettre en pause','Bewegung pausieren','暂停动画','アニメーション停止','إيقاف الحركة','توقف حرکت'],
+  'Simple':['Simple','Simple','Einfach','简洁','シンプル','بسيط','ساده'],
+  'Advanced':['Avanzado','Avancé','Erweitert','高级','詳細','متقدم','پیشرفته'],
+  'Interface mode':['Modo de interfaz','Mode de l’interface','Oberflächenmodus','界面模式','表示モード','وضع الواجهة','حالت رابط'],
+  'Simple mode: essential controls.':['Modo simple: controles esenciales.','Mode simple : commandes essentielles.','Einfacher Modus: grundlegende Steuerung.','简洁模式：基本控件。','シンプルモード：基本操作。','الوضع البسيط: أدوات أساسية.','حالت ساده: کنترل‌های ضروری.'],
+  'Advanced mode: all controls.':['Modo avanzado: todos los controles.','Mode avancé : toutes les commandes.','Erweiterter Modus: alle Steuerungen.','高级模式：全部控件。','詳細モード：すべての操作。','الوضع المتقدم: كل الأدوات.','حالت پیشرفته: همهٔ کنترل‌ها.'],
+  'Find a building, then select it to explore its source.':['Busca un edificio y selecciónalo para explorar su código.','Trouvez un bâtiment, puis sélectionnez-le pour explorer son code.','Gebäude suchen und auswählen, um den Quellcode zu erkunden.','查找并选择建筑以探索其源码。','建物を探して選択し、ソースを確認します。','ابحث عن مبنى ثم اختره لاستكشاف مصدره.','ساختمانی را پیدا و انتخاب کنید تا کد آن را بررسی کنید.'],
+  'Choose a folder to explore its code.':['Elige una carpeta para explorar su código.','Choisissez un dossier pour explorer son code.','Ordner auswählen, um seinen Code zu erkunden.','选择文件夹以探索代码。','フォルダーを選んでコードを確認します。','اختر مجلداً لاستكشاف شيفرته.','پوشه‌ای را برای بررسی کد آن انتخاب کنید.'],
   ...qualityMessages,
   'method':['método','méthode','Methode','方法','メソッド','أسلوب','متد'],
   'attribute':['atributo','attribut','Attribut','属性','属性','خاصية','ویژگی'],
@@ -44,7 +52,7 @@ const messages={
   'Open a project to build its city.':['Abre un proyecto para construir su ciudad.','Ouvrez un projet pour construire sa ville.','Projekt öffnen, um seine Stadt zu bauen.','打开项目以构建代码城市。','プロジェクトを開いて都市を作成します。','افتح مشروعًا لبناء مدينته.','پروژه‌ای باز کنید تا شهر آن ساخته شود.'],
   'Scanning project…':['Analizando proyecto…','Analyse du projet…','Projekt wird analysiert…','正在扫描项目…','プロジェクトを解析中…','جارٍ تحليل المشروع…','در حال بررسی پروژه…'],
   'Could not open project.':['No se pudo abrir el proyecto.','Impossible d’ouvrir le projet.','Projekt konnte nicht geöffnet werden.','无法打开项目。','プロジェクトを開けませんでした。','تعذر فتح المشروع.','باز کردن پروژه ممکن نشد.'],
-  'Start CodeCity with npm, the binary, or Docker to use project controls.':['Inicia CodeCity con npm, el ejecutable o Docker para gestionar proyectos.','Démarrez CodeCity avec npm, l’exécutable ou Docker pour gérer les projets.','CodeCity mit npm, der Programmdatei oder Docker starten, um Projekte zu verwalten.','通过 npm、可执行文件或 Docker 启动 CodeCity 以管理项目。','npm、実行ファイル、Docker のいずれかで CodeCity を起動してください。','شغّل CodeCity عبر npm أو الملف التنفيذي أو Docker لإدارة المشاريع.','برای مدیریت پروژه‌ها، CodeCity را با npm، فایل اجرایی یا Docker اجرا کنید.'],
+  'Start CodeCity with npm to use project controls.':['Inicia CodeCity con npm, el ejecutable o Docker para gestionar proyectos.','Démarrez CodeCity avec npm, l’exécutable ou Docker pour gérer les projets.','CodeCity mit npm, der Programmdatei oder Docker starten, um Projekte zu verwalten.','通过 npm、可执行文件或 Docker 启动 CodeCity 以管理项目。','npm、実行ファイル、Docker のいずれかで CodeCity を起動してください。','شغّل CodeCity عبر npm أو الملف التنفيذي أو Docker لإدارة المشاريع.','برای مدیریت پروژه‌ها، CodeCity را با npm، فایل اجرایی یا Docker اجرا کنید.'],
   'Explore':['Explorar','Explorer','Erkunden','探索','探索','استكشاف','کاوش'],
   'Legend':['Leyenda','Légende','Legende','图例','凡例','مفتاح الخريطة','راهنمای رنگ'],
   'Navigation':['Navegación','Navigation','Navigation','导航','操作','التنقل','پیمایش'],

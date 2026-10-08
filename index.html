@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-mode="simple">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -32,8 +32,12 @@
     <div id="stats" class="stats"></div>
 
     <div class="top-actions">
+      <div class="mode-switch" role="group" aria-label="Interface mode">
+        <button type="button" data-mode-choice="simple" aria-pressed="true">Simple</button>
+        <button type="button" data-mode-choice="advanced" aria-pressed="false">Advanced</button>
+      </div>
       <button id="history-toggle" class="mini-btn" hidden>Build history</button>
-      <button id="auto-hide-panels" class="mini-btn" aria-pressed="false" title="Auto-hide panels">Auto-hide</button>
+      <button id="auto-hide-panels" class="mini-btn" data-advanced hidden aria-pressed="false" title="Auto-hide panels">Auto-hide</button>
       <button id="project-menu-btn" class="mini-btn" aria-expanded="false" aria-controls="project-menu">Project</button>
       <select id="ui-language" aria-label="Interface language">
         <option value="en">English</option><option value="es">Español</option>
@@ -42,16 +46,18 @@
         <option value="ar">العربية</option><option value="fa">فارسی</option>
       </select>
       <button id="list-btn" class="icon-btn-lg" title="building list (accessibility)" aria-label="toggle building list">☰</button>
-      <button id="auto-rotate" class="icon-btn-lg" title="auto-orbit" aria-label="toggle auto-orbit">⟳</button>
+      <button id="auto-rotate" class="icon-btn-lg" data-advanced hidden title="auto-orbit" aria-label="toggle auto-orbit">⟳</button>
       <button id="reset-view" class="icon-btn-lg" title="reset view" aria-label="reset camera">⌂</button>
       <button id="help-btn" class="icon-btn-lg" title="help (?)" aria-label="open help" aria-controls="help" aria-expanded="false">?</button>
     </div>
   </header>
+  <span id="mode-status" class="sr-only" role="status"></span>
 
   <nav id="project-menu" hidden aria-label="Project">
     <button id="project-open" class="mini-btn">Open project…</button>
     <div class="panel-title">Open recent</div>
     <div id="project-recent"></div>
+    <button id="project-exclusions" class="mini-btn" disabled>Exclusions…</button>
     <button id="project-close" class="mini-btn">Close project</button>
     <div id="project-status" class="muted-note" role="status"></div>
   </nav>
@@ -66,15 +72,38 @@
       <div id="folder-list"></div>
       <p id="folder-error" role="alert"></p>
       <p id="folder-progress" class="muted-note" role="status"></p>
-      <p class="muted-note">Choose a folder. CodeGraph and project dependencies are not required.</p>
+      <p class="muted-note">Choose a folder to explore its code.</p>
+      <div data-advanced hidden class="ctrl-row">
+      <label for="folder-exclusions">Exclude patterns (optional, one per line)</label>
+      <textarea id="folder-exclusions" rows="2" dir="ltr" spellcheck="false" placeholder="**/tests/**&#10;**/*.generated.*"></textarea>
+      </div>
       <button id="folder-submit" type="submit" class="mini-btn">Open this folder</button>
     </form>
+  </dialog>
+  <dialog id="exclusions-dialog" aria-labelledby="exclusions-title">
+    <header class="details-head"><b id="exclusions-title">Project exclusions</b><button type="button" id="exclusions-close" class="icon-btn" aria-label="Close exclusions">×</button></header>
+    <p class="muted-note">Excluded parts and their connections are removed from the city. Source files stay on disk. Remove a rule to restore them.</p>
+    <p id="exclusions-root" class="muted-note" dir="ltr"></p>
+    <form id="exclusions-add-form" class="exclusion-add">
+      <label for="exclusion-kind">Exclude</label>
+      <select id="exclusion-kind"><option value="folder">Folder</option><option value="file">File</option><option value="symbol">Class / module</option><option value="pattern">Path pattern</option></select>
+      <label for="exclusion-value">Select or type a project path</label>
+      <input id="exclusion-value" list="exclusion-suggestions" dir="ltr" spellcheck="false" autocomplete="off" required />
+      <datalist id="exclusion-suggestions"></datalist>
+      <p id="exclusion-hint" class="muted-note"></p>
+      <button type="submit" class="mini-btn">Add rule</button>
+    </form>
+    <ul id="exclusion-rules" aria-label="Exclusion rules"></ul>
+    <p id="exclusions-error" role="alert"></p>
+    <p id="exclusions-status" class="muted-note" role="status"></p>
+    <div class="query-actions"><button id="exclusions-apply" class="mini-btn">Apply exclusions</button><button id="exclusions-cancel" class="mini-btn">Cancel</button></div>
+    <details id="scan-diagnostics" data-advanced hidden><summary>Scan diagnostics</summary><pre id="scan-diagnostics-summary"></pre><button id="scan-diagnostics-export" class="mini-btn">Download scan report</button></details>
   </dialog>
   <div id="empty-city" hidden><b>No project open</b><span>Open a project to build its city.</span><button id="empty-open" class="mini-btn">Open project…</button></div>
 
   <!-- left control panel -->
   <aside id="controls">
-    <div class="panel-title">Explore</div>
+    <p class="simple-intro" data-simple>Find a building, then select it to explore its source.</p>
 
     <div class="ctrl-row">
       <label for="search">search</label>
@@ -89,6 +118,7 @@
       <select id="filter"></select>
     </div>
 
+    <div data-advanced hidden class="advanced-controls">
     <div class="ctrl-row">
       <label for="query">query / tag</label>
       <form id="query-form">
@@ -144,6 +174,7 @@
     <div class="panel-title">Investigate</div>
     <div id="investigations"></div>
     <details><summary>Package minimap</summary><div id="minimap"></div></details>
+    </div>
     <div class="panel-title">Layers</div>
     <div class="ctrl-row">
       <label for="sel-streets">streets</label>
@@ -154,7 +185,7 @@
       </select>
     </div>
     <div class="toggles">
-      <label class="pill"><input type="checkbox" id="chk-grid" checked /><span>grid</span></label>
+      <label class="pill" data-advanced hidden><input type="checkbox" id="chk-grid" checked /><span>grid</span></label>
       <label class="pill"><input type="checkbox" id="pause-motion" /><span>pause motion</span></label>
     </div>
   </aside>
@@ -222,7 +253,7 @@
           </tbody>
         </table>
 
-        <p><b>Mapping</b> — the <i>mapping</i> dropdown chooses how a metric value
+        <p><b>Mapping</b>: the <i>mapping</i> dropdown chooses how a metric value
         becomes a size. <b>boxplot</b> (default) is the paper's approach: boundary
         values come from the data's quartiles/whiskers, so buildings take one of
         <b>5 balanced sizes</b> (very small → very tall) instead of a long tail of
@@ -261,8 +292,8 @@
 
         <h3>How to analyse a codebase with it</h3>
         <ol>
-          <li><b>Build the model:</b> <code>python serve.py</code> (uses the
-          CodeGraph index when present, else scans the sources).</li>
+          <li><b>Open a project:</b> start with <code>npx codecity-viewer</code>,
+          then choose a folder from the Project menu.</li>
           <li><b>Survey districts first:</b> the biggest plates reveal the
           architecture and where the mass of the code lives.</li>
           <li><b>Find outliers:</b> look for the tallest, widest and reddest

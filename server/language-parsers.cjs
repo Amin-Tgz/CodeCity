@@ -8,7 +8,7 @@ async function initialize(grammarAssets) {
   if(grammarAssets)provided=grammarAssets;
   return ready ||= (async()=>{
     await Parser.init({wasmBinary:assets('tree-sitter.wasm')});
-    for(const [lang,grammar] of Object.entries({python:'python',java:'java',csharp:'c_sharp',go:'go'})) {
+    for(const [lang,grammar] of Object.entries({python:'python',java:'java',csharp:'c_sharp',go:'go',c:'c',cpp:'cpp'})) {
       const parser=new Parser();parser.setLanguage(await Parser.Language.load(assets('tree-sitter-'+grammar+'.wasm')));parsers.set(lang,parser);
     }
   })();
@@ -21,6 +21,7 @@ const TYPES={
 };
 function parse(file,text,lang) {
   const parser=parsers.get(lang);if(!parser)return null;
+  if(lang==='c'||lang==='cpp')return require('./cpp-parser.cjs').parse(file,text,lang,parser);
   const tree=parser.parse(text),root=tree.rootNode,spec=TYPES[lang],buildings=[],diagnostics=[];
   const analysis={parser:'tree-sitter-'+lang,version:'wasms 0.1.13 / runtime 0.20.8',source:'syntax AST',confidence:root.hasError()?'low':'high',diagnostics,
     limitations:['Syntax counts only; dependencies for this language remain module-level estimates.']};

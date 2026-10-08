@@ -1,4 +1,5 @@
 import {request} from './projects.js';
+import {excludePart} from './exclusions.js';
 import {editorLink,graphIndex,PRESETS,rankCandidates,importCoverage} from './investigation.js';
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n;};
 export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
@@ -7,7 +8,13 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   const pieces=b.district==='.'?[]:b.district.split('/');
   for(let i=0;i<=pieces.length;i++){const id=i?pieces.slice(0,i).join('/'):'',button=el('button',i?pieces[i-1]:'Project','mini-btn');button.onclick=()=>{city.applyFilter(id);document.getElementById('filter').value=id;};crumb.append(button);}
   host.prepend(crumb);
+  if(city.model.meta.source==='scan'&&!city.model.meta.commit&&!city.model.meta.comparisonSources) {
+    const actions=el('div',null,'query-actions');actions.dataset.advanced='';
+    for(const [label,rule] of [['Exclude class / module',{kind:'symbol',value:b.id}],['Exclude file',{kind:'file',value:b.file}],['Exclude folder',{kind:'folder',value:b.district}]]){const button=el('button',label,'mini-btn');button.onclick=()=>excludePart(rule);actions.append(button);}
+    host.append(actions);
+  }
   const evidence=el('details',null,'metric-evidence'),summary=el('summary','How these metrics were obtained');evidence.append(summary);
+  evidence.dataset.advanced='';
   const a=b.analysis||{parser:'legacy model',version:'unknown',source:city.model.meta.source,confidence:'unknown'};
   evidence.append(el('p',`${a.parser} ${a.version} · ${a.source} · confidence: ${a.confidence}`,'muted-note'));
   evidence.append(el('p',b.generated?'Generated source · '+a.generatedReason:'Authored source · '+(a.generatedReason||'classification unavailable'),'muted-note'));
@@ -19,6 +26,7 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   const preview=el('section',null,'source-section'),show=el('button','Preview source','mini-btn'),status=el('p','','muted-note'),code=el('pre',null,'source-preview');code.dir='ltr';code.tabIndex=0;code.setAttribute('aria-label','Source preview');
   const editor=el('a','Open selected lines in editor','mini-btn');editor.hidden=true;
   const setting=el('details'),settingTitle=el('summary','Editor link settings'),input=el('input');input.type='text';input.setAttribute('aria-label','Editor URL template');input.placeholder='vscode://file/{path}:{line}';
+  setting.dataset.advanced='';
   try{input.value=localStorage.getItem('codecity.editor')||'vscode://file/{path}:{line}';}catch{input.value='vscode://file/{path}:{line}';}
   setting.append(settingTitle,input,el('p','Placeholders: {path}, {line}, {end}.','muted-note'));preview.append(show,status,editor,code,setting);host.append(preview);
   let current=null,serial=0;
@@ -37,14 +45,14 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
     }catch(e){if(seq===serial)status.textContent=e.message;}
   };
   show.onclick=()=>source();host.querySelectorAll('.member-row').forEach(button=>button.addEventListener('click',()=>source(Number(button.dataset.mi))));
-  const deps=el('details');deps.open=true;deps.append(el('summary','Dependencies and cycles'));
+  const deps=el('details');deps.dataset.advanced='';deps.open=true;deps.append(el('summary','Dependencies and cycles'));
   const cycle=graph.components.get(b.id);deps.append(el('p',cycle?`Cycle component: ${cycle.map(id=>graph.byId.get(id).name).join(' → ')}. Members are mutually reachable; this order is not a cycle path.`:'No directed cycle in the available graph.','muted-note'));
   const routed=new Set((city.street?.paths||[]).map(p=>p.a+'\0'+p.b));
   const skipped=new Map((city.street?.unroutedEdges||[]).map(e=>[e.a+'\0'+e.b,e.reason]));
   for(const [label,edges,target] of [['Outgoing',graph.outgoing.get(b.id),'b'],['Incoming',graph.incoming.get(b.id),'a']]) {
     deps.append(el('p',`${label} (${edges.length})`,'details-section'));
     for(const r of edges){const button=el('button',`${graph.byId.get(r[target])?.name} · ${r.kind||'dependency'} × ${r.weight}${routed.has(r.a+'\0'+r.b)?'':' · no street'}`,'member-row');button.title=(skipped.get(r.a+'\0'+r.b)||'')+' '+JSON.stringify(r.evidence||[]);if(r.historical)button.textContent+=' · historical edge';button.onclick=()=>onSelect(graph.byId.get(r[target]));deps.append(button);
-      for(const e of r.evidence||[])deps.append(el('p',e.file?`${e.file}:${e.line} · ${e.symbol||e.ref||''}${e.alias?' as '+e.alias:''}`:e.description,'muted-note'));}
+      for(const e of r.evidence||[])deps.append(el('p',e.file?`${e.file}${e.line?':'+e.line:''} · ${e.symbol||e.ref||''}${e.alias?' as '+e.alias:''}${e.description?' · '+e.description:''}`:e.description,'muted-note'));}
   }
   host.append(deps);
 }

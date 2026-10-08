@@ -1,0 +1,54 @@
+// Run with a Playwright page connected to a fresh Node launcher.
+export async function runModeChecks(page, projectPath) {
+  const checks=[];
+  const assert=(value,label)=>{if(!value)throw Error(label);checks.push(label);};
+  const visible=selector=>page.locator(selector).isVisible();
+  await page.evaluate(()=>localStorage.removeItem('codecity.mode'));
+  // Reset this isolated test server so this check can be repeated.
+  await page.evaluate(async()=>{const session=await(await fetch('/api/session')).json();await fetch('/api/project/close',{method:'POST',headers:{'X-CodeCity-Token':session.token,'Content-Type':'application/json'},body:'{}'});});
+  await page.reload();
+  await page.waitForFunction(()=>window.__codecity&&document.getElementById('loading').style.display==='none');
+  assert(await page.locator('html').getAttribute('data-mode')==='simple','fresh visit defaults to Simple');
+  assert(!await visible('#controls')&&!await visible('#legend'),'empty Simple city hides inactive panels');
+  await page.locator('[data-mode-choice="advanced"]').click();
+  assert(await visible('#sel-height')&&await visible('#query'),'Advanced reveals mapping and queries');
+  await page.reload();
+  await page.waitForFunction(()=>window.__codecity&&document.getElementById('loading').style.display==='none');
+  assert(await page.locator('[data-mode-choice="advanced"]').getAttribute('aria-pressed')==='true','Advanced preference survives reload');
+  await page.locator('[data-mode-choice="simple"]').click();
+  await page.locator('#empty-open').click();
+  assert(!await visible('#folder-exclusions'),'Simple folder dialog keeps optional settings hidden');
+  await page.locator('#folder-path').fill(projectPath);
+  await page.locator('#folder-submit').click();
+  await page.waitForFunction(()=>document.body.classList.contains('has-project')&&document.getElementById('loading').style.display==='none');
+  assert(await visible('#search')&&!await visible('#sel-height'),'opened project retains Simple controls');
+  await page.locator('#search').fill('Widget');
+  await page.locator('#search-form').evaluate(form=>form.requestSubmit());
+  assert(await visible('#details')&&!await visible('.metric-evidence'),'Simple selection shows essentials');
+  await page.locator('.source-section > button').click();
+  await page.waitForFunction(()=>document.querySelector('.source-preview')?.textContent.includes('class Widget'));
+  assert(await visible('.source-preview'),'source preview works in Simple');
+  await page.locator('.metric-explain[data-metric="loc"]').click();
+  assert(await page.locator('html').getAttribute('data-mode')==='advanced'&&await visible('.metric-evidence p:first-of-type'),'metric click reveals Advanced evidence');
+  await page.locator('#details-close').click();
+  await page.locator('#query').fill('loc>0');
+  await page.locator('#query-form').evaluate(form=>form.requestSubmit());
+  await page.locator('[data-mode-choice="simple"]').click();
+  assert(await page.locator('#query').inputValue()===''&&!await visible('#query'),'Simple clears hidden query state');
+  await page.locator('#ui-language').selectOption('fa');
+  assert(await page.locator('html').getAttribute('dir')==='rtl'&&await page.locator('[data-mode-choice="simple"]').textContent()==='ساده','mode labels and layout support Persian');
+  await page.setViewportSize({width:390,height:844});
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
+  assert(!overflow,'mobile layout has no page overflow');
+  await page.screenshot({path:'output/playwright/simple-mobile-fa.png'});
+  await page.locator('#ui-language').selectOption('en');
+  await page.setViewportSize({width:1280,height:800});
+  await page.screenshot({path:'output/playwright/simple-project.png'});
+  await page.locator('[data-mode-choice="advanced"]').click();
+  await page.screenshot({path:'output/playwright/advanced-project.png'});
+  await page.locator('[data-mode-choice="simple"]').click();
+  await page.reload();
+  await page.waitForFunction(()=>window.__codecity&&document.getElementById('loading').style.display==='none');
+  assert(await page.locator('html').getAttribute('data-mode')==='simple','Simple preference survives reload');
+  return checks;
+}

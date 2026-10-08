@@ -15,6 +15,7 @@ import { initPanels, initAutoHide, setSelectionPanelState } from './panels.js';
 import {initInvestigations,drawMinimap} from './inspection-ui.js';
 import {graphIndex} from './investigation.js';
 import { renderQualityGuide } from './quality-guide.js';
+import {initMode} from './mode.js';
 
 const canvas = document.getElementById('scene');
 let renderDirty=true;
@@ -114,6 +115,7 @@ function updateHudOffset() {
   document.documentElement.style.setProperty('--details-top',Math.ceil(panel.getBoundingClientRect().bottom+12)+'px');
 }
 window.addEventListener('resize', resize);
+window.addEventListener('modechange',()=>{renderDirty=true;updateHudOffset();});
 new ResizeObserver(updateHudOffset).observe(document.getElementById('topbar'));
 resize();
 
@@ -162,6 +164,15 @@ function wireUI(model) {
     city.highlightSubset(ids);
     qCount.textContent = t('{n} of {total} tagged · {query}', {n: ids.length, total: model.buildings.length, query: parsed.describe});
   };
+  const simpleMode=()=>{
+    if(document.documentElement.dataset.mode!=='simple')return;
+    qInput.value='';qSaved.value='';runQuery('');
+    const preset=document.querySelector('#investigations select');
+    if(preset?.value){preset.value='';preset.dispatchEvent(new Event('change'));}
+  };
+  // wireUI runs again on project/history changes; keep one handler for the current city.
+  if(wireUI.modeListener)window.removeEventListener('modechange',wireUI.modeListener);
+  wireUI.modeListener=simpleMode;window.addEventListener('modechange',simpleMode);
   const refreshSaved = () => {
     const all = loadQueries();
     qSaved.replaceChildren(new Option(t('saved…'), ''), ...Object.keys(all).map((k) => new Option(k, k)));
@@ -208,7 +219,8 @@ function initHelp() {
   body.replaceChildren();
   for (const text of [
     'Each class or module is a building; folders are districts. Height represents methods (NOM), footprint attributes (NOA), and colour lines of code (LOC).',
-    'Open a project from the Project menu. Mixed languages are scanned together without installing Python, CodeGraph, compilers, or project dependencies.',
+    'Open a project from the Project menu. CodeCity scans its source without installing project dependencies.',
+    'Simple mode keeps essential controls visible. Advanced mode adds queries, metric mapping, history, and investigations. Your choice is remembered.',
     'Select a building to inspect source ranges, metric evidence, incoming/outgoing dependencies, and cycles. Click a member to preview its lines, or configure an editor link.',
     'JS/TS uses a TypeScript syntax parser and local symbol checker. Python, Java, C#, and Go use bundled syntax grammars. Other languages use labelled estimates. The inspector exposes confidence and unresolved-link limits.',
     'Drag to orbit, wheel to zoom, right-drag to pan. Use [ and ] to select buildings with the keyboard.',
@@ -330,12 +342,14 @@ async function loadModel(model) {
   document.getElementById('query-count').textContent = '';
   document.getElementById('citylist').classList.remove('open');
   document.getElementById('empty-city').hidden = !!model.meta.root;
+  document.body.classList.toggle('has-project',!!model.meta.root);
   wireUI(model); initPanels(); resetView(); controls.update(); translate();
   UI.setLoading(null);
+  window.dispatchEvent(new CustomEvent('codecitymodelchange',{detail:model}));
 }
 
 async function boot() {
-  initI18n(); initHelp(); initAutoHide();
+  initI18n(); initMode(); initHelp(); initAutoHide();
   const pauseMotion=document.getElementById('pause-motion');
   try{pauseMotion.checked=localStorage.getItem('codecity.pauseMotion')==='true';}catch{}
   pauseMotion.onchange=()=>{renderDirty=true;try{localStorage.setItem('codecity.pauseMotion',String(pauseMotion.checked));}catch{}};
@@ -348,7 +362,7 @@ async function boot() {
     model = await res.json();
     validateModel(model);
   } catch (err) {
-    UI.setError(`Could not load the project (${err.message}). Start CodeCity with npm or the standalone launcher.`);
+    UI.setError(`Could not load the project (${err.message}). Start CodeCity with npm.`);
     return;
   }
 

@@ -21,76 +21,104 @@ It is **reusable for any folder**, renders with **three.js**, and runs
 
 ## Quick start
 
-CodeCity now runs without Python, pip, CodeGraph, compilers, or the project's
-dependencies. It opens an **empty city**; choose **Project → Open project**,
-browse to a folder (or paste its path), and open it. Recent folders are saved
-on this computer. **Close project** clears the city while keeping recents.
+CodeCity runs on Node.js 22.13 or newer. It starts in **Simple** mode with an
+empty city. Choose **Project → Open project** and select a folder. Source is
+scanned locally without installing or executing the project's dependencies.
+
+From this checkout, launch with one command; no dependency install is needed:
 
 ```bash
-cd codecity
 npm start
-# or select a project at startup:
+# Or open a folder immediately:
 npm start -- --root /path/to/project
 ```
 
-Node.js 22.13 or newer is required for npm, but **no npm install is needed to
-run the app from source**. Parser assets and three.js are vendored; no runtime dependency installation
-is needed. The launcher prints a browser URL and automatically
-chooses a free port if the default 8137 is unavailable.
+### One-command npm / npx launch
 
-### npm / npx distribution
+Once these changes are pushed, run directly from the GitHub source archive
+(no Git installation required):
 
-Build a portable npm package from this checkout:
+```bash
+npx --yes --package=https://codeload.github.com/Amin-Tgz/CodeCity/tar.gz/refs/heads/main codecity
+```
+
+The shorter registry command will be available **after publishing** this
+package to npm. It is not published by this change:
+
+```bash
+npx codecity-viewer
+# Or install once and keep the command:
+npm install -g codecity-viewer
+codecity
+```
+
+To try the package locally before publishing:
 
 ```bash
 npm pack
-npx --package ./codecity-viewer-0.4.0.tgz codecity
-# or install the same package:
-npm install -g ./codecity-viewer-0.4.0.tgz
-codecity --root /path/to/project
+npx --yes --package ./codecity-viewer-0.4.0.tgz codecity
 ```
 
-The package is ready to publish as `codecity-viewer`; it has **not** been
-published by this change. After publication, the command will be
-`npx codecity-viewer`. npm/npx require Node.js, never Python.
+The launcher opens your browser, prints its URL, and chooses a free port if
+8137 is occupied. Options: `--root FOLDER`, `--port NUMBER`, `--no-open`.
+Bundled parsers and three.js make the installed app usable offline.
 
-### Docker
+### Installer (also works when Node is missing)
+
+From this checkout on Windows, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
+```
+
+On macOS or Linux:
 
 ```bash
-docker build -t codecity .
-docker run --rm -p 127.0.0.1:8137:8137 -v "/path/to/project:/projects:ro" codecity
+sh scripts/install.sh
 ```
 
-Open `http://localhost:8137` and choose `/projects` in the Project menu.
-Windows example: `-v "D:/Projects/MyApp:/projects:ro"`. With Compose, set
-`CODECITY_PROJECT` to the host folder, then run `docker compose up --build`.
-The project mount is read-only; a named volume saves recent projects.
-The file manager button is disabled in Docker because a container cannot
-open the host desktop's file explorer. Use npm or a standalone binary for it.
+After pushing these changes, Windows users can also bootstrap in PowerShell:
 
-### Standalone binaries
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Amin-Tgz/CodeCity/main/scripts/install.ps1').Content))
+```
+
+On macOS or Linux:
 
 ```bash
-npm ci
-npm run build:binary
+curl -fsSL https://raw.githubusercontent.com/Amin-Tgz/CodeCity/main/scripts/install.sh | sh
 ```
 
-The result is `dist/codecity.exe` on Windows or `dist/codecity` on Linux/macOS.
-It embeds Node, the scanner, and the complete offline viewer, so users need
-**neither Node nor Python installed**. Build on each target platform; the
-release workflow builds Windows x64, Linux x64, and macOS binaries with a
-manual workflow run or a `v*` tag. The Windows executable is unsigned.
-Run the executable, or pass `--root`, `--port`, and `--no-open` as needed.
+The installer reuses compatible Node and npm. If Node is missing or older
+than 22.13, it downloads the **latest LTS** from nodejs.org, verifies SHA-256,
+and installs a private runtime for CodeCity. No administrator rights are
+required. Use `-NodeChannel current` on Windows or
+`CODECITY_NODE_CHANNEL=current` on Unix to choose latest Current instead.
+Node's [release policy](https://nodejs.org/en/about/previous-releases)
+recommends LTS releases for production use.
 
-Build the Linux x64 executable from Windows using Docker:
+Windows installs under `%LOCALAPPDATA%\CodeCity` and adds its launcher to
+your user PATH. Unix installs under `~/.local/share/codecity` (or
+`$XDG_DATA_HOME/codecity`), with a launcher at `~/.local/bin/codecity`;
+add that folder to PATH if needed. Both launch the app after installation.
+Use `-NoLaunch` or `CODECITY_NO_LAUNCH=1` to install without launching.
+An installer can use a local package with `-PackageSpec PATH` or
+`CODECITY_PACKAGE=PATH`. Downloaded installers use the GitHub source archive
+by default; checkout installers use the checkout itself.
 
-```bash
-docker build --platform linux/amd64 -f Dockerfile.binary --output type=local,dest=output/linux .
-```
+### Simple and Advanced modes
 
-This produces `output/linux/codecity-linux-x64` for Linux with glibc 2.36+
-(Debian 12 / Ubuntu 24.04 or newer). The regular Docker image also works on
-hosts where this native binary's system libraries are unavailable.
+**Simple** is the default. It keeps project access, search, district filtering,
+street visibility, pause motion, the legend, keyboard building list, and
+essential selected-building metrics and source preview close at hand.
+
+Choose **Advanced** in the top bar for queries, saved queries, metric mapping,
+Git history, investigations, coverage import, minimap, grid, auto-hide,
+auto-orbit, metric evidence, member lists, dependency inspection, editor
+settings, and scan diagnostics. Clicking a metric switches to Advanced and
+opens its evidence. Switching back to Simple clears query/investigation
+highlights and returns history to the current model. The mode choice is
+remembered; advanced mapping choices are retained and reflected by the legend.
 
 Then drag to orbit, wheel to zoom, right-drag to pan, click a building for
 details. Use the search box, the district filter, the metric dropdowns, and
@@ -116,7 +144,7 @@ Building details have **copy path** and **Open in file manager** actions.
 On Windows, Explorer selects the source file; on Linux, `xdg-open` opens its
 containing folder in the default file manager; on macOS, Finder reveals it.
 
-### Mixed-language scanning and CodeGraph
+### Mixed-language scanning
 
 The portable launcher **always scans source** and does not look for CodeGraph.
 It supports over 40 language/file families including Python, JS/TS/React,
@@ -127,7 +155,7 @@ and files over 2 MB are excluded; scans are capped at 20,000 source files.
 Skip warnings are available in the source badge's tooltip.
 
 JS/TS/JSX/TSX use the bundled TypeScript 5.9.3 syntax parser and an
-in-memory local symbol checker. Python, Java, C#, and Go use bundled
+in-memory local symbol checker. Python, Java, C#, Go, C, and C++ use bundled
 Tree-sitter WASM grammars; other languages retain explicitly labelled
 heuristic adapters. Nothing in the analyzed project is executed or loaded.
 Parser diagnostics lower confidence instead of silently claiming exact counts.
@@ -137,6 +165,18 @@ follows relative imports, aliases, namespace imports and re-exports, and
 respects lexical shadowing. External packages, tsconfig path aliases, dynamic
 dispatch, HTTP/RPC, and cross-language runtime calls remain unresolved.
 Dependencies for languages other than JS/TS are module-reference estimates.
+C/C++ includes use syntax nodes (ignoring comments and string literals),
+resolve quoted headers beside their source, and recognize public include roots
+such as `modules/core/include/opencv2`. If `compile_commands.json` exists at
+the project root or under `build/`, include resolution uses the per-file
+`-I`, `-isystem`, `-iquote`, and `/I` paths in their declared order. Commands
+are only read, never executed. Ambiguous headers are reported without
+inventing a connection. Include roads connect file modules; they do not claim
+that the first class in a header was called. C++ types include namespace and
+nested type names, with declaration ranges, overloads and fields from syntax.
+Preprocessing and compiler-based C++ call graphs are not included; macro-heavy
+code can still have low-confidence metrics. The compilation database format
+is documented by [Clang](https://clang.llvm.org/docs/JSONCompilationDatabase.html).
 Generated source outside excluded output folders remains visible with a
 path/header classification and is excluded from investigation rankings.
 
@@ -146,6 +186,54 @@ paths (or absolute paths under the project root): `{ "src/a.ts": 0.8 }`,
 `{ "src/a.ts": 80 }`, or `{ "src/a.ts": { "pct": 1 } }` for an explicit 1%.
 Istanbul summary entries with `lines.pct` are supported. Coverage is file-level
 and shared by the declarations in that file; missing coverage stays unknown.
+
+### Project exclusions and scan diagnostics
+
+Choose **Project → Exclusions…** to omit a folder, file, class/module, or path
+pattern. Type to search the available paths and declarations, add rules, then
+click **Apply exclusions**. Selected building details also offer **Exclude
+class / module**, **Exclude file**, and **Exclude folder** shortcuts. Remove
+a rule and apply again to restore the source. Exclusions remove the relevant
+buildings and their edges without modifying project files. Rules are saved
+per project beside the recent-project settings, including across app restarts.
+They also apply to commit-structure snapshots and follow Git-detected file
+renames to the current path.
+
+The Open project dialog accepts optional patterns before the initial scan.
+Paths use `/` and are relative to the project root: `*` matches within a
+folder, `**` matches nested folders, and `?` matches one character.
+For example, `**/tests/**`, `samples/`, and `**/*.generated.*`.
+Choose **Folder** for an entire directory; a path pattern `samples/**` excludes
+its descendants. Rules can be cancelled before applying.
+
+**Exclusions → Scan diagnostics** shows resolved, ambiguous and unresolved
+reference counts and offers a JSON report with warnings, bounded examples,
+counts per language and scan timings. Unresolved references can be external
+libraries, missing generated headers, dynamic imports or unsupported aliases;
+their count does not by itself measure graph accuracy. Set `CODECITY_TRACE=1`
+before starting the app for detailed JSON dependency events in the terminal.
+Example in PowerShell: `$env:CODECITY_TRACE='1'; npm start`.
+
+Repeated declarations, conditional alternatives and copies in different files
+receive distinct building identities. Known documentation and snapshot files
+(`.txt`, `.rst`, `.snap`, `.lock`) are not interpreted as source examples.
+`CMakeLists.txt` remains recognized. If an input repeats a normalized source
+path, the first copy is retained with a warning.
+
+To repeat the real-project investigation without running project code:
+
+```bash
+git clone --depth 1 --branch 4.x https://github.com/opencv/opencv.git output/research/projects/opencv
+git clone --depth 1 https://github.com/django/django.git output/research/projects/django
+git clone --depth 1 https://github.com/vuejs/core.git output/research/projects/vue
+npm run audit:project -- output/research/projects/opencv output/research/opencv-after.json
+```
+
+The audit validates IDs and roads, records parser confidence and dependency
+evidence, and checks representative OpenCV include connections. Research
+checkouts and reports stay in ignored `output/research/`.
+See [RESEARCH.md](RESEARCH.md) for the measured before/after results and
+remaining analysis limits.
 
 ### Source and dependency investigation
 
@@ -208,97 +296,15 @@ no npm installation or network. `npm ci && npm run build:parsers` refreshes
 these assets and the analysis-worker bundle during development. The
 [TypeScript compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API)
 is used with a virtual source host; bundled license notices accompany all
-parser assets. Binaries embed the workers and WASM files too. To build while
-an existing executable is running, use
-`node scripts/build-binary.cjs --output-dir output/build-validation`.
+parser assets.
 
-### Optional Python / static workflow
+## Project structure
 
-The original Python launcher and static viewer still work for existing models:
-
-```bash
-python serve.py --rebuild
-python -m http.server 8137        # then open http://127.0.0.1:8137/index.html
-```
-
-Static/Python hosting renders cached `city.json`; project opening and file
-manager integration require the new npm, binary, or Docker launcher.
-
-## Building the model
-
-`build_city.py` turns a codebase into `city.json`:
-
-```bash
-python build_city.py                       # auto: this CodeCity repo
-python build_city.py D:\some\project       # any folder
-python build_city.py --source scan         # force the dependency-free scanner
-python build_city.py --codegraph path\to\codegraph.db
-python build_city.py --history             # also record a git-history timeline
-python build_city.py --coverage cov.json   # colour by coverage {path: pct}
-```
-
-Two data sources, tried in order (`--source auto`, the default):
-
-1. **codegraph** - if a CodeGraph SQLite index exists at
-   `<root>/.codegraph/codegraph.db`, it is used. This yields accurate classes,
-   methods, attributes and call/import edges.
-2. **scan** - a standard-library source scanner that walks the tree. Python
-   uses its AST parser for classes, async methods, assigned fields and member
-   lists. This legacy Python builder uses JS/TS regex estimates; other supported languages
-   fall back to file-level counts. No tools or network are required.
-
-The default root is the CodeCity directory. Pass a root explicitly to analyze
-another project. `serve.py --root PATH` rebuilds the model even if a cached
-`city.json` exists; `--no-build` keeps the cached model. The checked-in model
-is an example from another project, so use `--rebuild` to view CodeCity itself.
-
-Both paths emit the same schema:
-
-```jsonc
-{
-  "meta": { "root", "source", "totals", "languages", "legend" },
-  "districts": [ { "id", "name", "depth", "buildings", "loc", "methods" } ],
-  "buildings": [ {
-      "id", "name", "kind", "file", "district", "language",
-      "loc", "methods", "attributes", "functions",
-      "nom", "noa", "deps", "start_line"
-  } ],
-  "roads": [ { "a", "b", "kind", "weight" } ]
-}
-```
-
-`nom` (height metric) and `noa` (footprint metric) are the canonical CodeCity
-metrics; `deps` is the summed dependency weight from the roads.
-Zero metrics remain zero in the JSON; minimum visual dimensions only affect
-rendering. A mixed Python or JS file can contain both class buildings and a
-module building for its top-level functions/state.
-
-## Files
-
-```
-codecity/
-  build_city.py     model builder (codegraph DB or source scan) -> city.json
-  city.json         generated model consumed by the viewer
-  serve.py          build + static server + open browser (stdlib only)
-  fetch_vendor.py   one-time three.js download into vendor/
-  index.html        the viewer
-  styles.css        UI styling
-  src/
-    main.js         three.js scene, camera, lights, time-of-day, event wiring
-    city.js         turns city.json into meshes (districts, buildings, roads)
-    layout.js       squarified treemap layout
-    metrics.js      metric definitions, scaling, colour ramps
-    textures.js     procedural facade/window, road/street, sky and grass textures
-    landscape.js    decorative meadow, forest, river, hills and bird flock
-    quality-guide.js illustrated guide to reviewing visual code signals
-  assets/
-    codecity.svg    code brackets + city skyline logo and favicon
-    ui.js           HUD, legend, tooltip, details panel
-  vendor/
-    three.module.js three.js r160 (vendored, offline)
-    OrbitControls.js
-  preview/          day.png / night.png renders of this repo
-```
+- `server/`: Node launcher, local API, source analysis workers, and bundled parsers.
+- `src/`: city rendering, Simple/Advanced modes, and exploration controls.
+- `vendor/`, `assets/`: offline three.js and app artwork.
+- `scripts/install.ps1`, `scripts/install.sh`: Node-aware installers.
+- `tests/`: Node unit tests and browser checks.
 
 ## Visual design
 
@@ -323,8 +329,8 @@ and applies to any codebase:
 - **Git-history time-lapse** — the portable launcher detects Git repositories
   automatically; **Build history** in the top bar plays their commits, and a
   slider in Explore scrubs the history. Two tower cranes and three loaders
-  animate while playing, and disappear on pause or completion. The Docker
-  image includes Git; npm/native launchers use your installed Git. A folder
+  animate while playing, and disappear on pause or completion. The Node
+  launcher uses your installed Git. A folder
   with no commits or a missing Git executable shows a clear status.
   Buildings
   appear as their files are first added and grow toward their final height.
@@ -362,13 +368,8 @@ buildings stay visually distinct.
 
 ## Offline / vendored three.js
 
-three.js is vendored under `vendor/` so the page needs no CDN. If the files
-are ever missing, fetch the pinned version once:
-
-```bash
-python fetch_vendor.py            # three.js r160
-python fetch_vendor.py 0.161.0    # or any version
-```
+three.js is vendored under `vendor/`; no CDN or runtime download is needed.
+Keep its pinned files and accompanying license when updating the vendor.
 
 ## Metric mapping
 
@@ -383,15 +384,14 @@ Height/footprint/mapping changes rebuild geometry. Colour-only changes preserve
 positions, meshes and street routes. The
 **colour** dropdown also offers semantic modes: **language** (a hue per
 language, shown as a swatch legend) and **coverage** (red → green), the latter
-only when the model was built with `--coverage`.
+after importing coverage in Advanced mode.
   Missing coverage is grey; zero coverage is red. Numeric coverage values
   in `[0, 1]` are fractions; values above 1 are percentages. An explicit
   `{ "pct": 1 }` means 1%, resolving that boundary ambiguity.
 
 ## Notes
 
-- `.codegraph/` and generated models are machine-local; run `build_city.py`
-  (scan mode) to regenerate `city.json` anywhere, with no tooling.
+- Project models are scanned by the Node launcher when you open a folder.
 - Streets are dependency edges between buildings (up to 2,500 drawn by
   weight, toggleable) and drawn on the ground with pedestrians — they are an
   addition on top of the classic CodeCity metaphor, which only uses positions,
@@ -402,15 +402,14 @@ only when the model was built with `--coverage`.
 
 ## Validation
 
-No Python packages or npm installation are needed for the unit tests:
+Run the Node tests and optional benchmark:
 
 ```bash
-python -m unittest discover -s tests -v
 npm test
 npm run benchmark
 ```
 
-For browser checks, start `python serve.py --no-build --no-open`. In the
+For browser checks, start `npm start -- --no-open` and choose Advanced mode. In the
 browser's developer console, run:
 
 ```js
@@ -430,6 +429,14 @@ reduced motion, resource disposal and separation from selectable code.
 selection folding, reopening Explore, removed output controls, Git playback,
 construction motion, pause, and return to the current model. The output and
 comparison controls and CPU/RAM UI have been removed.
+
+`tests/browser_modes.js` exports `runModeChecks(page, projectPath)` for a
+fresh isolated Node server and a small source fixture. It checks mode
+defaults and persistence, source preview, metric evidence, query cleanup,
+the folder dialog, and mobile Persian layout. On Windows, run
+`powershell -NoProfile -ExecutionPolicy Bypass -File tests/installer.windows.ps1`
+to check missing/outdated Node, Current selection, and corrupt downloads
+with mocked network responses and no user PATH changes.
 
 See [REVIEW.md](REVIEW.md) for review findings, verified behavior, remaining
 limitations and suggested next improvements.

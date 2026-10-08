@@ -19,6 +19,15 @@ test('missing Git leaves project scanning usable and reports a clear history sta
   const state=await readHistory('root',[],{run:async()=>{const e=Error('not installed');e.code='ENOENT';throw e;}});
   assert.deepEqual(state,{historyStatus:'no-git'});
 });
+
+test('Git ownership exception uses canonical slashes for Windows roots',async()=>{
+  const calls=[];
+  const state=await readHistory('D:\\Projects\\OpenCV',['a.cpp'],{run:async(command,args)=>{
+    calls.push(args);return {stdout:args.includes('--numstat')?'@@'+'a'.repeat(40)+'\t100\n1\t0\ta.cpp\n':''};
+  }});
+  assert.equal(state.historyStatus,'available');
+  assert.ok(calls.every(args=>args.includes('safe.directory=D:/Projects/OpenCV')));
+});
 test('portable history reads real commits for nested folders with Persian and spaced paths',{skip:spawnSync('git',['--version']).status!==0},async t=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'codecity-history-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
   const hooks=path.join(root,'no-hooks');await fs.mkdir(hooks);
@@ -94,9 +103,4 @@ test('project lifecycle persists recents, rejects cross-origin actions and revea
   res=await post('project/close',{});assert.equal((await res.json()).model.buildings.length,0);
   assert.equal((await post('reveal',{file:'entry.py'})).status,400);
   assert.deepEqual(JSON.parse(await fs.readFile(stateFile,'utf8')),[opened.model.meta.root]);
-});
-test('container mode reports that the host file manager is unavailable',async t=>{
-  const {server,ready}=createApp({container:true,stateFile:path.join(os.tmpdir(),'missing-codecity-state.json')});await ready;
-  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
-  const session=await(await fetch(`http://127.0.0.1:${server.address().port}/api/session`)).json();assert.equal(session.canReveal,false);
 });

@@ -3,6 +3,7 @@ import {t} from './i18n.js';
 import {revealFile,canReveal} from './projects.js';
 import {attachInspector} from './inspection-ui.js';
 import {registerAutoHidePanel} from './panels.js';
+import {getMode, setMode} from './mode.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -11,8 +12,8 @@ export function renderStats(model) {
   $('stats').innerHTML = [
     `<span>${escapeHtml(t('{n} buildings', {n:totals.buildings}))}</span>`,
     `<span>${escapeHtml(t('{n} districts', {n:totals.districts}))}</span>`,
-    `<span id="roads-stat">${escapeHtml(t('{n} roads', {n:totals.roads}))}</span>`,
-    `<span><b>${totals.loc.toLocaleString()}</b> LOC</span>`,
+    `<span id="roads-stat" data-advanced ${getMode()==='simple'?'hidden':''}>${escapeHtml(t('{n} roads', {n:totals.roads}))}</span>`,
+    `<span data-advanced ${getMode()==='simple'?'hidden':''}><b>${totals.loc.toLocaleString()}</b> LOC</span>`,
   ].join('');
   $('source-badge').textContent = model.meta.source === 'codegraph'
     ? t('indexed · {n} nodes / {e} edges', {n:totals.nodes,e:totals.edges})
@@ -101,8 +102,8 @@ export function renderDetails(building, { onMember, onClose, city, onSelect } = 
       <button id="details-close" class="icon-btn" title="close" aria-label="close">&times;</button>
     </div>
     <div id="details-body">
-    <table>${rows.map(([k, v]) => `<tr><td>${escapeHtml(t(k))}</td><td ${k === 'file' ? 'dir="ltr"' : ''}>${['LOC','methods (NOM)','attributes (NOA)','dependencies','complexity'].includes(k)?`<button class="metric-explain mini-btn" data-metric="${({'LOC':'loc','methods (NOM)':'nom','attributes (NOA)':'noa','dependencies':'deps','complexity':'complexity'})[k]}" title="Explain this metric">${escapeHtml(String(v))}</button>`:escapeHtml(k==='kind'?t(String(v)):String(v))}</td></tr>`).join('')}</table>
-    ${membersHtml}
+    <table>${rows.map(([k, v]) => `<tr ${['kind','line','top-level funcs','complexity','source type'].includes(k)?'data-advanced':''}><td>${escapeHtml(t(k))}</td><td ${k === 'file' ? 'dir="ltr"' : ''}>${['LOC','methods (NOM)','attributes (NOA)','dependencies','complexity'].includes(k)?`<button class="metric-explain mini-btn" data-metric="${({'LOC':'loc','methods (NOM)':'nom','attributes (NOA)':'noa','dependencies':'deps','complexity':'complexity'})[k]}" title="Explain this metric">${escapeHtml(String(v))}</button>`:escapeHtml(k==='kind'?t(String(v)):String(v))}</td></tr>`).join('')}</table>
+    <div data-advanced>${membersHtml}</div>
     <div class="details-actions">
       <button id="details-open-file" class="mini-btn">copy path</button>
       <button id="details-reveal" class="mini-btn" ${canReveal()?'':'disabled title="File manager requires the native launcher."'}>Open in file manager</button>
@@ -137,7 +138,8 @@ export function renderDetails(building, { onMember, onClose, city, onSelect } = 
     finally{btn.disabled=false;}
   };
   if(city) attachInspector($('details-body'),building,{city,onSelect});
-  box.querySelectorAll('.metric-explain').forEach(button=>button.onclick=()=>{const evidence=box.querySelector('.metric-evidence');if(evidence){evidence.open=true;(evidence.querySelector(`[data-metric="${button.dataset.metric}"]`)||evidence).scrollIntoView({block:'nearest'});}});
+  setMode(getMode(), {persist:false});
+  box.querySelectorAll('.metric-explain').forEach(button=>button.onclick=()=>{setMode('advanced');const evidence=box.querySelector('.metric-evidence');if(evidence){evidence.open=true;(evidence.querySelector(`[data-metric="${button.dataset.metric}"]`)||evidence).scrollIntoView({block:'nearest'});}});
   box.querySelectorAll('.member-list .member-row').forEach((row) => {
     row.onclick = () => {
       box.querySelectorAll('.member-row.active').forEach((r) => r.classList.remove('active'));

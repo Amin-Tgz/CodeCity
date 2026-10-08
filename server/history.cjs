@@ -24,7 +24,7 @@ function framesFromLog(log, paths, maxFrames=96) {
 }
 async function readHistory(root, paths, {run=execute}={}) {
   const options={cwd:root,encoding:'utf8',timeout:12000,maxBuffer:24*1024*1024,windowsHide:true};
-  const args=['-c',`safe.directory=${root}`,'-c','core.quotepath=false','--no-pager'];
+  const args=['-c',`safe.directory=${root.replaceAll('\\','/')}`,'-c','core.quotepath=false','--no-pager'];
   try {
     await run('git',[...args,'rev-parse','--is-inside-work-tree'],options);
     const {stdout}=await run('git',[...args,'log','--reverse','--topo-order','--no-merges','--no-renames','--no-ext-diff','--no-textconv','--relative','--format=@@%H%x09%ct','--numstat','--','.'],options);
@@ -49,18 +49,22 @@ function renameMap(log) {
   return canonical;
 }
 
-async function readSnapshot(root,hash,{run=execute}={}) {
+async function readSnapshot(root,hash,{run=execute,exclusions=[]}={}) {
   if(!/^[a-f0-9]{40,64}$/.test(hash))throw Error('Invalid commit.');
   const path=require('node:path'),{spawn}=require('node:child_process');
   const scanner=require('./scanner.cjs');await require('./language-parsers.cjs').initialize();
   const options={cwd:root,encoding:'utf8',timeout:30000,maxBuffer:64*1024*1024,windowsHide:true};
-  const args=['-c',`safe.directory=${root}`,'-c','core.quotepath=false','--no-pager'];
+  const args=['-c',`safe.directory=${root.replaceAll('\\','/')}`,'-c','core.quotepath=false','--no-pager'];
   const prefix=(await run('git',[...args,'rev-parse','--show-prefix'],options)).stdout.trim();
+  const renames=(await run('git',[...args,'log','--format=','--name-status','-z','--relative','--find-renames=50%',`${hash}..HEAD`,'--','.'],options)).stdout;
+  const canonical=renameMap(renames);
   const listing=(await run('git',[...args,'ls-tree','-rz','--full-tree',hash,'--',prefix||'.'],options)).stdout;
   const entries=[];
+  const exclude=require('./exclusions.cjs').matcher(exclusions);
   for(const row of listing.split('\0')) {
     const m=row.match(/^(100644|100755) blob ([a-f0-9]+)\t(.+)$/s);if(!m)continue;
     const file=m[3].slice(prefix.length);if(file.split('/').some(p=>scanner.SKIP.has(p)||p.startsWith('.')))continue;
+    if(exclude.file(file)||exclude.file(canonical.get(file)||file))continue;
     entries.push({file,oid:m[2]});
   }
   if(entries.length>20000)throw Error('Historical tree exceeds the 20,000-file snapshot limit.');
@@ -79,12 +83,10 @@ async function readSnapshot(root,hash,{run=execute}={}) {
     const size=Number(header[1]);offset=end+1;const buf=buffers.subarray(offset,offset+size);offset+=size+1;
     if(size>scanner.MAX_BYTES||buf.includes(0))continue;const text=buf.toString('utf8');if(scanner.isSource(entry.file,text))files.push({file:entry.file,text});
   }
-  const model=scanner.modelFromFiles(files,root);
+  const model=scanner.modelFromFiles(files,root,{exclusions,canonicalFiles:canonical});
   // Follow detected Git renames forward to HEAD, retaining commit-local paths for previews.
-  const renames=(await run('git',[...args,'log','--format=','--name-status','-z','--relative','--find-renames=50%',`${hash}..HEAD`,'--','.'],options)).stdout;
-  const canonical=renameMap(renames);
   const ids=new Map();
-  for(const b of model.buildings){const file=canonical.get(b.file)||b.file;const id=b.kind==='module'?`${file}::module`:`${file}::${b.kind}:${b.name}`;ids.set(b.id,id);b.id=id;b.canonical_file=file;}
+  for(const b of model.buildings){const file=canonical.get(b.file)||b.file;const id=file+b.id.slice(b.file.length);ids.set(b.id,id);b.id=id;b.canonical_file=file;}
   for(const r of model.roads){r.a=ids.get(r.a);r.b=ids.get(r.b);}
   Object.assign(model.meta,{commit:hash,historyMode:'structural',identity:'Git-detected file renames + qualified declaration names; symbol renames are additions/removals.'});
   model.meta.snapshotSources=Object.fromEntries(files.map(f=>[f.file,f.text]));

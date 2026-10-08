@@ -1,7 +1,8 @@
 import {t, translate} from './i18n.js';
+import {initExclusions} from './exclusions.js';
 let session=null;
 export async function request(action, body, method='POST') {
-  if(!session) throw Error(t('Start CodeCity with npm, the binary, or Docker to use project controls.'));
+  if(!session) throw Error(t('Start CodeCity with npm to use project controls.'));
   const res=await fetch(`/api/${action}`,{method,headers:{'X-CodeCity-Token':session.token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
   const data=await res.json();
   if(!res.ok) throw Error(t(data.error||'Could not open project.'));
@@ -17,11 +18,13 @@ export async function initProjects(onModel) {
   document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target)&&e.target!==button) setMenu(false);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')setMenu(false);});
   let working=false;
+  let browseSequence=0;
+  initExclusions(onModel,()=>session,()=>working,v=>{working=v;});
   const open=async path=>{
-    if(working)return;working=true;
+    if(working)return;working=true;browseSequence++;
     const submit=document.getElementById('folder-submit');submit.disabled=true;status.textContent=t('Scanning project…');error.textContent='';
     const progress=document.getElementById('folder-progress');progress.textContent=t('Scanning project…');
-    try {const data=await request('project/open',{path});await onModel(data.model);session.root=data.model.meta.root;session.recent=data.recent;renderRecent();dialog.close();setMenu(false);status.textContent='';}
+    try {const exclusions=document.getElementById('folder-exclusions').value.split(/\r?\n/).map(value=>value.trim()).filter(Boolean).map(value=>({kind:'pattern',value}));const data=await request('project/open',{path,exclusions});session.root=data.model.meta.root;await onModel(data.model);session.recent=data.recent;renderRecent();dialog.close();setMenu(false);status.textContent='';document.getElementById('folder-exclusions').value='';}
     catch(e){error.textContent=e.message;status.textContent=e.message;}
     finally{working=false;submit.disabled=false;progress.textContent='';}
   };
@@ -33,9 +36,12 @@ export async function initProjects(onModel) {
     if(!host.childElementCount)host.textContent=t('No recent projects');
   };
   const browse=async path=>{
+    const sequence=++browseSequence,previousInput=input.value;
     error.textContent='';
     try {
-      const data=await request('folders?path='+encodeURIComponent(path||''),null,'GET');input.value=data.path;
+      const data=await request('folders?path='+encodeURIComponent(path||''),null,'GET');
+      if(sequence!==browseSequence||input.value!==previousInput)return;
+      input.value=data.path;
       const host=document.getElementById('folder-list');host.replaceChildren();
       for(const folder of data.folders) {const b=document.createElement('button');b.type='button';b.className='folder-row';b.textContent='▸ '+folder.name;b.dir='auto';b.onclick=()=>browse(folder.path);host.append(b);}
       document.getElementById('folder-parent').onclick=()=>browse(data.parent);
@@ -44,7 +50,7 @@ export async function initProjects(onModel) {
     }catch(e){error.textContent=e.message;}
   };
   const showOpen=()=>{
-    if(!session){setMenu(true);status.textContent=t('Start CodeCity with npm, the binary, or Docker to use project controls.');return;}
+    if(!session){setMenu(true);status.textContent=t('Start CodeCity with npm to use project controls.');return;}
     setMenu(false);error.textContent='';dialog.showModal();browse(session.root||'');
   };
   document.getElementById('project-open').onclick=document.getElementById('empty-open').onclick=showOpen;

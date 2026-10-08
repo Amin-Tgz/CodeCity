@@ -1,4 +1,5 @@
 import {t} from './i18n.js';
+import {getMode} from './mode.js';
 const listeners = new Map();
 const panels = new Map();
 const folds = new Map();
@@ -20,8 +21,8 @@ export function registerAutoHidePanel(panel) {
   const show=()=>{clearTimeout(timer);panel.classList.remove('auto-hidden');expanded(true);};
   const schedule=()=>{
     clearTimeout(timer);
-    if(!autoHide||hovered||panel.contains(document.activeElement))return;
-    timer=setTimeout(()=>{if(autoHide&&!hovered&&!panel.contains(document.activeElement)){panel.classList.add('auto-hidden');expanded(false);}},1500);
+    if(!autoHide||getMode()==='simple'||hovered||panel.contains(document.activeElement))return;
+    timer=setTimeout(()=>{if(autoHide&&getMode()==='advanced'&&!hovered&&!panel.contains(document.activeElement)){panel.classList.add('auto-hidden');expanded(false);}},1500);
   };
   panel.addEventListener('pointerenter',()=>{hovered=true;show();});
   panel.addEventListener('pointerleave',()=>{hovered=false;schedule();});
@@ -37,6 +38,7 @@ export function initAutoHide() {
     for(const state of panels.values()) {state.show();state.schedule();}
   };
   button.onclick=()=>{autoHide=!autoHide;try{localStorage.setItem('codecity.autoHide',autoHide?'1':'0');}catch{}apply();};
+  window.addEventListener('modechange',apply);
   for(const id of ['controls','legend','hint','details','citylist'])registerAutoHidePanel(document.getElementById(id));
   apply();
 }

@@ -1,9 +1,0 @@
-.git
-node_modules
-output
-dist
-__pycache__
-preview
-.playwright-mcp
-city.json
-.npm-cache
