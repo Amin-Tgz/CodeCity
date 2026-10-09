@@ -51,38 +51,25 @@ function renameMap(log) {
 
 async function readSnapshot(root,hash,{run=execute,exclusions=[]}={}) {
   if(!/^[a-f0-9]{40,64}$/.test(hash))throw Error('Invalid commit.');
-  const path=require('node:path'),{spawn}=require('node:child_process');
   const scanner=require('./scanner.cjs');await require('./language-parsers.cjs').initialize();
   const options={cwd:root,encoding:'utf8',timeout:30000,maxBuffer:64*1024*1024,windowsHide:true};
   const args=['-c',`safe.directory=${root.replaceAll('\\','/')}`,'-c','core.quotepath=false','--no-pager'];
   const prefix=(await run('git',[...args,'rev-parse','--show-prefix'],options)).stdout.trim();
   const renames=(await run('git',[...args,'log','--format=','--name-status','-z','--relative','--find-renames=50%',`${hash}..HEAD`,'--','.'],options)).stdout;
   const canonical=renameMap(renames);
-  const listing=(await run('git',[...args,'ls-tree','-rz','--full-tree',hash,'--',prefix||'.'],options)).stdout;
+  const listing=(await run('git',[...args,'ls-tree','-rz','--long','--full-tree',hash,'--',prefix||'.'],options)).stdout;
   const entries=[];
   const exclude=require('./exclusions.cjs').matcher(exclusions);
   for(const row of listing.split('\0')) {
-    const m=row.match(/^(100644|100755) blob ([a-f0-9]+)\t(.+)$/s);if(!m)continue;
-    const file=m[3].slice(prefix.length);if(file.split('/').some(p=>scanner.SKIP.has(p)||p.startsWith('.')))continue;
+    const m=row.match(/^(100644|100755) blob ([a-f0-9]+)\s+(\d+)\t(.+)$/s);if(!m)continue;
+    const file=m[4].slice(prefix.length);if(file.split('/').some(p=>scanner.SKIP.has(p)||p.startsWith('.')))continue;
+    // Match the scanner's size limit and skip files it rejects regardless of content.
+    if(Number(m[3])>scanner.MAX_BYTES||!scanner.isSource(file,'class Candidate'))continue;
     if(exclude.file(file)||exclude.file(canonical.get(file)||file))continue;
     entries.push({file,oid:m[2]});
   }
   if(entries.length>20000)throw Error('Historical tree exceeds the 20,000-file snapshot limit.');
-  const buffers=await new Promise((resolve,reject)=>{
-    const child=spawn('git',[...args,'cat-file','--batch'],{cwd:root,windowsHide:true,stdio:['pipe','pipe','pipe']});
-    const chunks=[];let bytes=0,stderr='';const timer=setTimeout(()=>{child.kill();reject(Error('Historical source read timed out.'));},30000);
-    child.stdout.on('data',buf=>{bytes+=buf.length;if(bytes>80*1024*1024){child.kill();reject(Error('Historical source exceeds the 80 MB snapshot limit.'));}else chunks.push(buf);});
-    child.stderr.on('data',b=>{stderr+=b.toString();});child.on('error',e=>{clearTimeout(timer);reject(e);});
-    child.on('close',code=>{clearTimeout(timer);if(code!==0)reject(Error(stderr||'Could not read historical sources.'));else resolve(Buffer.concat(chunks));});
-    child.stdin.on('error',()=>{});child.stdin.end(entries.map(e=>e.oid).join('\n')+(entries.length?'\n':''));
-  });
-  const files=[];let offset=0;
-  for(const entry of entries) {
-    const end=buffers.indexOf(10,offset);if(end<0)throw Error('Incomplete historical source.');
-    const header=buffers.subarray(offset,end).toString().match(/^[a-f0-9]+ blob (\d+)$/);if(!header)throw Error('Invalid historical object.');
-    const size=Number(header[1]);offset=end+1;const buf=buffers.subarray(offset,offset+size);offset+=size+1;
-    if(size>scanner.MAX_BYTES||buf.includes(0))continue;const text=buf.toString('utf8');if(scanner.isSource(entry.file,text))files.push({file:entry.file,text});
-  }
+  const files=await require('./git-blob-reader.cjs').readSourceBlobs(root,args,entries);
   const model=scanner.modelFromFiles(files,root,{exclusions,canonicalFiles:canonical});
   // Follow detected Git renames forward to HEAD, retaining commit-local paths for previews.
   const ids=new Map();

@@ -19,14 +19,14 @@ export function initTimeline(history,city,{status,onPlaying=()=>{},onModelChange
   const compare=document.createElement('button');compare.id='history-compare';compare.className='mini-btn';compare.textContent='Compare with current';compare.disabled=true;host.append(compare);
   const range=host.querySelector('#tl-range'),label=host.querySelector('#tl-label'),play=host.querySelector('#tl-play');
   range.max=String(frames.length);range.value=range.max;
-  row.title='Approximate growth uses net file lines. Commit structure parses Git blobs without checking out or executing source; symbol renames appear as additions/removals.';
+  row.title=t('Approximate growth estimates past sizes from file lines. Commit structure parses source at each commit. Compare with current shows additions, changes, and removed buildings. Git commits are required.');
   const apply=i=>{
     const seq=++sequence;compare.disabled=true;snapshot=null;
     if(mode.value==='structural'&&i<frames.length) {
-      waiting=true;label.textContent='Reading commit structure…';const f=frames[i];
+      waiting=true;label.textContent=t('Reading commit structure…');const f=frames[i];
       return request('history/snapshot',{hash:f.hash}).then(data=>{
         if(disposed||sequence!==seq)return;validateModel(data.model);snapshot=data.model;city.clearDiff();city.setStructuralModel(snapshot,current);onModelChanged(snapshot);compare.disabled=false;
-        label.textContent=`${f.hash.slice(0,7)} · ${new Date(f.t*1000).toISOString().slice(0,10)} · ${snapshot.buildings.length} buildings · commit structure · scales fixed to current model`;
+        label.textContent=t('Commit {hash} · {date} · {n} buildings · scales fixed to current model',{hash:f.hash.slice(0,7),date:new Date(f.t*1000).toISOString().slice(0,10),n:snapshot.buildings.length});
       }).catch(err=>{if(!disposed&&sequence===seq){label.textContent=err.message;stop();}}).finally(()=>{if(sequence===seq)waiting=false;});
     }
     waiting=false;
@@ -34,7 +34,7 @@ export function initTimeline(history,city,{status,onPlaying=()=>{},onModelChange
 
     if(i===frames.length){city.setHistoryFrame(null,finalFiles);label.textContent=t('Current model · includes uncommitted files');return;}
     const f=frames[i];city.setHistoryFrame(f,finalFiles);
-    label.textContent='Approximate · '+t('{hash} · {date} · {n} buildings · {lines} lines',{hash:f.hash.slice(0,7),date:new Date(f.t*1000).toISOString().slice(0,10),n:[...city.byBuilding.values()].filter(e=>e.group.visible).length,lines:f.total});
+    label.textContent=t('Approximate')+' · '+t('{hash} · {date} · {n} buildings · {lines} lines',{hash:f.hash.slice(0,7),date:new Date(f.t*1000).toISOString().slice(0,10),n:[...city.byBuilding.values()].filter(e=>e.group.visible).length,lines:f.total});
   };
   let timer=null;
   const buttons=()=>{const playing=timer!==null;play.textContent=playing?'⏸':'▶';quick.textContent=t(playing?'Pause construction':'Build history');quick.classList.toggle('active',playing);play.setAttribute('aria-pressed',String(playing));quick.setAttribute('aria-pressed',String(playing));};
@@ -48,7 +48,7 @@ export function initTimeline(history,city,{status,onPlaying=()=>{},onModelChange
     for(const r of snapshot.roads)if(!keys.has(r.a+'\0'+r.b+'\0'+r.kind))roads.push({...r,historical:true});
     const combined={meta:{...current.meta,comparisonCommit:snapshot.meta.commit,comparisonSources:snapshot.meta.snapshotSources,totals:{...current.meta.totals,buildings:buildings.length,districts:ds.size,roads:roads.length}},buildings,districts:[...ds.values()],roads};
     city.setStructuralModel(combined,current);city.applyDiff(diff.base);onModelChanged(combined);
-    label.textContent=`Against ${snapshot.meta.commit.slice(0,7)}: ${diff.stats.added} added · ${diff.stats.changed} changed · ${diff.stats.removed} removed (green ghosts)`;
+    label.textContent=t('Against {hash}: {added} added · {changed} changed · {removed} removed (green ghosts)',{hash:snapshot.meta.commit.slice(0,7),...diff.stats});
   };
   const toggle=()=>{
     if(timer!==null){stop();return;}
@@ -59,8 +59,6 @@ export function initTimeline(history,city,{status,onPlaying=()=>{},onModelChange
   };
   play.onclick=quick.onclick=toggle;
   const language=()=>{buttons();apply(Number(range.value));translate(host);};
-  const uiMode=()=>{if(document.documentElement.dataset.mode==='simple'&&(timer!==null||Number(range.value)!==frames.length)){stop();range.value=range.max;apply(frames.length);}};
-  window.addEventListener('modechange',uiMode);
   window.addEventListener('languagechange',language);buttons();apply(frames.length);translate(host);
-  return ()=>{disposed=true;sequence++;stop();quick.onclick=null;window.removeEventListener('languagechange',language);window.removeEventListener('modechange',uiMode);};
+  return ()=>{disposed=true;sequence++;stop();quick.onclick=null;window.removeEventListener('languagechange',language);};
 }

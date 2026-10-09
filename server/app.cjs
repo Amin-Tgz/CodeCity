@@ -7,6 +7,7 @@ const {spawn} = require('node:child_process');
 const {emptyModel} = require('./scanner.cjs');
 const {runAnalysis}=require('./analysis.cjs');
 const {validateRules}=require('./exclusions.cjs');
+const {DEFAULT_PROFILE,validateProfile}=require('./profile.cjs');
 const ASSET_ROOT = path.resolve(__dirname,'..');
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml'};
 function launch(command,args) {
@@ -30,13 +31,15 @@ async function readBody(req) {
   for await(const chunk of req) {bytes+=chunk.length;if(bytes>131072) throw Error('Request too large.');chunks.push(chunk);}
   return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');
 }
-function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','recent.json'),reveal=launch}={}) {
+function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','recent.json'),profileFile=path.join(path.dirname(stateFile),'profile.json'),reveal=launch}={}) {
   const token=crypto.randomBytes(32).toString('hex');
   let model=emptyModel(),recent=[],busy=false,exclusionsByRoot={};
   const exclusionsFile=stateFile+'.exclusions.json';
   const snapshots=new Map();
   const pendingSnapshots=new Map();let projectEpoch=0;
+  let profile=DEFAULT_PROFILE;
   const ready=(async()=>{
+    try {profile=validateProfile(JSON.parse(await fs.readFile(profileFile,'utf8')));}catch{}
     try { const data=JSON.parse(await fs.readFile(stateFile,'utf8'));if(Array.isArray(data)) recent=data.filter(p=>typeof p==='string').slice(0,10); } catch {}
     try{const saved=JSON.parse(await fs.readFile(exclusionsFile,'utf8'));if(saved&&typeof saved==='object'&&!Array.isArray(saved))for(const [key,value] of Object.entries(saved)){try{exclusionsByRoot[key]=validateRules(value);}catch{}}}catch{}
     if(root){const project=await fs.realpath(path.resolve(root));model=await runAnalysis('scan',project,undefined,{exclusions:exclusionsByRoot[project]||[]});}
@@ -56,6 +59,7 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
       if(url.pathname==='/city.json'&&req.method==='GET') return json(200,model);
       if(url.pathname.startsWith('/api/')) {
         if(req.headers['x-codecity-token']!==token) return json(403,{error:'Refresh CodeCity to reconnect.'});
+        if(url.pathname==='/api/profile'&&req.method==='GET') return json(200,{profile});
         if(url.pathname==='/api/folders'&&req.method==='GET') {
           const requested=url.searchParams.get('path')||model.meta.root||os.homedir();
           const dir=await fs.realpath(path.resolve(requested));
@@ -66,6 +70,15 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
         }
         if(req.method!=='POST') return json(405,{error:'Method not allowed.'});
         const body=await readBody(req);
+        if(url.pathname==='/api/profile') {
+          const next=validateProfile(body);
+          await fs.mkdir(path.dirname(profileFile),{recursive:true});
+          const temporary=profileFile+'.'+crypto.randomBytes(8).toString('hex')+'.tmp';
+          try {await fs.writeFile(temporary,JSON.stringify(next,null,2)+'\n');await fs.rename(temporary,profileFile);}
+          finally {await fs.rm(temporary,{force:true});}
+          profile=next;
+          return json(200,{profile});
+        }
         if(url.pathname==='/api/history/snapshot') {
           if(!model.meta.history?.frames.some(f=>f.hash===body.hash))return json(400,{error:'Choose a commit from this project timeline.'});
           const project=model.meta.root,epoch=projectEpoch;

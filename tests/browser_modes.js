@@ -21,9 +21,10 @@ export async function runModeChecks(page, projectPath) {
   await page.locator('#folder-path').fill(projectPath);
   await page.locator('#folder-submit').click();
   await page.waitForFunction(()=>document.body.classList.contains('has-project')&&document.getElementById('loading').style.display==='none');
-  assert(await visible('#search')&&!await visible('#sel-height'),'opened project retains Simple controls');
-  await page.locator('#search').fill('Widget');
-  await page.locator('#search-form').evaluate(form=>form.requestSubmit());
+  assert(!await visible('#search')&&!await visible('#filter')&&!await visible('#sel-streets')&&await visible('#sel-height'),'Simple shows mapping and hides search, district, and streets');
+  await page.locator('#list-btn').click();
+  await page.locator('.list-row').filter({hasText:'Widget'}).first().click();
+  await page.locator('#list-close').click();
   assert(await visible('#details')&&!await visible('.metric-evidence'),'Simple selection shows essentials');
   await page.locator('.source-section > button').click();
   await page.waitForFunction(()=>document.querySelector('.source-preview')?.textContent.includes('class Widget'));

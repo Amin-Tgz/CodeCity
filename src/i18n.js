@@ -1,9 +1,14 @@
 // English plus six widely used languages and Persian. Source identifiers stay unchanged.
 import qualityMessages from './quality-strings.js';
+import helpMessages from './help-strings.js';
+import controlMessages from './control-strings.js';
+import {applyTooltips} from './tooltips.js';
 export const locales=['en','es','fr','de','zh','ja','ar','fa'];
 let locale='en';
 // Entries: Spanish, French, German, Chinese, Japanese, Arabic, Persian.
 const messages={
+  ...helpMessages,
+  ...controlMessages,
   'pause motion':['pausar movimiento','mettre en pause','Bewegung pausieren','暂停动画','アニメーション停止','إيقاف الحركة','توقف حرکت'],
   'Simple':['Simple','Simple','Einfach','简洁','シンプル','بسيط','ساده'],
   'Advanced':['Avanzado','Avancé','Erweitert','高级','詳細','متقدم','پیشرفته'],
@@ -172,6 +177,7 @@ export function translate(root=document.body) {
     const translated=value&&t(reverse.get(value)||value);
     if(value&&translated!==value)el.setAttribute(attr,translated);
   }
+  applyTooltips(root,t);
 }
 export function setLocale(value) {
   locale=locales.includes(value)?value:'en';

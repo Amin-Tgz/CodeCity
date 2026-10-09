@@ -14,8 +14,9 @@ import { initProjects } from './projects.js';
 import { initPanels, initAutoHide, setSelectionPanelState } from './panels.js';
 import {initInvestigations,drawMinimap} from './inspection-ui.js';
 import {graphIndex} from './investigation.js';
-import { renderQualityGuide } from './quality-guide.js';
 import {initMode} from './mode.js';
+import {initProfile} from './profile.js';
+import {renderHelp} from './help.js';
 
 const canvas = document.getElementById('scene');
 let renderDirty=true;
@@ -134,11 +135,6 @@ function wireUI(model) {
   const selF = document.getElementById('sel-footprint');
   const selC = document.getElementById('sel-color');
   const selM = document.getElementById('sel-mode');
-  if (model.buildings.some((b) => b.coverage != null)) {
-    const opt = document.getElementById('opt-coverage');
-    if (opt) opt.style.display = '';
-  } else document.getElementById('opt-coverage').style.display = 'none';
-  if (selC.value === 'coverage' && !model.buildings.some(b => b.coverage != null)) selC.value = 'loc';
   const applyMapping = () => {
     city.setMapping({ height: selH.value, footprint: selF.value, color: selC.value, mode: selM.value });
     UI.renderRoadStats(city);
@@ -167,6 +163,7 @@ function wireUI(model) {
   const simpleMode=()=>{
     if(document.documentElement.dataset.mode!=='simple')return;
     qInput.value='';qSaved.value='';runQuery('');
+    document.getElementById('search').value='';document.getElementById('filter').value='';city.applyFilter(null);
     const preset=document.querySelector('#investigations select');
     if(preset?.value){preset.value='';preset.dispatchEvent(new Event('change'));}
   };
@@ -192,6 +189,7 @@ function wireUI(model) {
     if (t != null) { qInput.value = t; runQuery(t); }
   };
   refreshSaved();
+  simpleMode();
 
   document.getElementById('auto-rotate').onclick = (e) => {
     controls.autoRotate = !controls.autoRotate;
@@ -216,17 +214,8 @@ function wireUI(model) {
 function initHelp() {
   const help = document.getElementById('help');
   const body = help.querySelector('.help-body');
-  body.replaceChildren();
-  for (const text of [
-    'Each class or module is a building; folders are districts. Height represents methods (NOM), footprint attributes (NOA), and colour lines of code (LOC).',
-    'Open a project from the Project menu. CodeCity scans its source without installing project dependencies.',
-    'Simple mode keeps essential controls visible. Advanced mode adds queries, metric mapping, history, and investigations. Your choice is remembered.',
-    'Select a building to inspect source ranges, metric evidence, incoming/outgoing dependencies, and cycles. Click a member to preview its lines, or configure an editor link.',
-    'JS/TS uses a TypeScript syntax parser and local symbol checker. Python, Java, C#, and Go use bundled syntax grammars. Other languages use labelled estimates. The inspector exposes confidence and unresolved-link limits.',
-    'Drag to orbit, wheel to zoom, right-drag to pan. Use [ and ] to select buildings with the keyboard.',
-    'Fold panels using their header buttons. Close project returns to an empty city and keeps your recent projects.',
-  ]) { const p = document.createElement('p'); p.textContent = text; body.append(p); }
-  renderQualityGuide(body);
+  renderHelp(body);
+  window.addEventListener('languagechange',()=>renderHelp(body));
   const isOpen = () => help.classList.contains('open');
   let previousFocus = null;
   const setOpen = (v) => {
@@ -354,6 +343,7 @@ async function boot() {
   try{pauseMotion.checked=localStorage.getItem('codecity.pauseMotion')==='true';}catch{}
   pauseMotion.onchange=()=>{renderDirty=true;try{localStorage.setItem('codecity.pauseMotion',String(pauseMotion.checked));}catch{}};
   await initProjects(loadModel);
+  await initProfile();
   UI.setLoading(t('loading city.json …'));
   let model;
   try {

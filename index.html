@@ -103,9 +103,9 @@
 
   <!-- left control panel -->
   <aside id="controls">
-    <p class="simple-intro" data-simple>Find a building, then select it to explore its source.</p>
+    <p class="simple-intro" data-simple>Select a building to explore its source. Change metrics or play its Git history below.</p>
 
-    <div class="ctrl-row">
+    <div class="ctrl-row" data-advanced hidden>
       <label for="search">search</label>
       <form id="search-form">
         <input id="search" type="search" placeholder="class or file name…" autocomplete="off" />
@@ -113,7 +113,7 @@
       </form>
     </div>
 
-    <div class="ctrl-row">
+    <div class="ctrl-row" data-advanced hidden>
       <label for="filter">district</label>
       <select id="filter"></select>
     </div>
@@ -133,7 +133,8 @@
       <div id="query-count" class="muted-note" role="status"></div>
     </div>
 
-    <div class="panel-title">Map metrics</div>
+    </div>
+    <div class="panel-title metrics-title">Map metrics</div>
     <div class="ctrl-grid">
       <label for="sel-height">height</label>
       <select id="sel-height">
@@ -156,7 +157,7 @@
         <option value="noa">attributes (NOA)</option>
         <option value="deps">dependencies</option>
         <option value="language">language</option>
-        <option value="coverage" id="opt-coverage" style="display:none">coverage</option>
+        <option value="coverage" id="opt-coverage">coverage</option>
       </select>
       <label for="sel-mode">mapping</label>
       <select id="sel-mode">
@@ -165,18 +166,21 @@
         <option value="threshold">threshold</option>
       </select>
     </div>
+    <button id="metric-profile-save" class="mini-btn" type="button">Save as default</button>
+    <p id="metric-profile-status" class="muted-note" role="status"></p>
 
     <div class="ctrl-row" id="timeline-row">
       <label>history</label>
       <div id="timeline-host" class="timeline-host"></div>
     </div>
 
+    <div data-advanced hidden class="advanced-controls">
     <div class="panel-title">Investigate</div>
     <div id="investigations"></div>
     <details><summary>Package minimap</summary><div id="minimap"></div></details>
     </div>
     <div class="panel-title">Layers</div>
-    <div class="ctrl-row">
+    <div class="ctrl-row" data-advanced hidden>
       <label for="sel-streets">streets</label>
       <select id="sel-streets">
         <option value="all" selected>all</option>
@@ -220,123 +224,7 @@
         <button id="help-close" class="icon-btn" title="close (Esc)">&times;</button>
       </header>
 
-      <div class="help-body">
-        <p><b>CodeCity</b> turns a codebase into a 3D city. Every
-        <b>class or module</b> is a building, every <b>folder / package</b> is a
-        district, and the size and colour of a building encode software metrics.
-        The metaphor comes from Wettel &amp; Lanza, <i>“Visualizing Software
-        Systems as Cities”</i> (2007).</p>
-
-        <h3>Metrics</h3>
-        <table class="help-table">
-          <thead><tr><th>Metric</th><th>Full name</th><th>Mapped to</th><th>What it tells you</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><b>NOM</b></td><td>Number Of Methods</td><td>building <b>height</b></td>
-              <td>How much <i>behaviour</i> a type has. Tall buildings are
-              behaviour-heavy classes; a very tall one is usually doing too much.</td>
-            </tr>
-            <tr>
-              <td><b>NOA</b></td><td>Number Of Attributes</td><td>building <b>footprint</b></td>
-              <td>How much <i>state</i> a class holds. Wide bases mean
-              data-heavy classes that keep a lot of fields.</td>
-            </tr>
-            <tr>
-              <td><b>LOC</b></td><td>Lines Of Code</td><td>building <b>colour</b></td>
-              <td>Raw code size. Ramp: slate → teal → gold → crimson (low → high).</td>
-            </tr>
-            <tr>
-              <td><b>DEPS</b></td><td>Dependencies</td><td>optional dimension</td>
-              <td>Imports + calls touching this building. High value = highly
-              coupled. Roads on the ground draw these relationships.</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <p><b>Mapping</b>: the <i>mapping</i> dropdown chooses how a metric value
-        becomes a size. <b>boxplot</b> (default) is the paper's approach: boundary
-        values come from the data's quartiles/whiskers, so buildings take one of
-        <b>5 balanced sizes</b> (very small → very tall) instead of a long tail of
-        near-identical slabs. <b>threshold</b> uses 5 fixed bands, and
-        <b>linear</b> maps the raw value continuously.</p>
-
-        <h3>On “NOC”</h3>
-        <p><b>NOC</b> is a classic OO metric for <b>Number Of Classes</b> (and,
-        in inheritance metrics, also <b>Number Of Children</b>). It is easy to
-        confuse with <b>NOA</b> (Number Of Attributes) used here. This tool does
-        <b>not</b> map NOC onto a building, because districts already group
-        classes: the number of classes in a package is simply the number of
-        buildings sitting on that district plate (see the district dropdown,
-        which shows the per-district building count). If you need inheritance
-        fan-out (Number Of Children), it is not modelled — the CodeGraph index
-        exposes only one <code>extends</code> edge in this repo, so it would add
-        colour without adding insight.</p>
-
-        <h3>How to read the city</h3>
-        <ul>
-          <li><b>Districts</b> — the raised plates. The largest plates are the
-          largest packages; a sprawling district is a package doing too much.</li>
-          <li><b>Tall</b> (high NOM) — a class with many methods.</li>
-          <li><b>Wide / big footprint</b> (high NOA) — a class holding a lot of state.</li>
-          <li><b>Warm/red colour</b> (high LOC) — a big file/class.</li>
-          <li><b>Tall + red</b> — the classic “God class” shape: many methods
-          <i>and</i> lots of code. These are your first refactoring targets.</li>
-          <li><b>Streets</b> — imports/calls between buildings, drawn on the ground.
-          <b>Roads</b> (wide, yellow lane lines) carry the heaviest links,
-          <b>streets</b> and <b>alleys</b> (narrow, white centre line) the rest.
-          The number of <b>people</b> walking a street is how many connections it
-          represents. Many streets leading <i>into</i> a building = high fan-in
-          (widely used; changes are risky). Many leading <i>out</i> = high fan-out
-          (it depends on everything).</li>
-        </ul>
-
-        <h3>How to analyse a codebase with it</h3>
-        <ol>
-          <li><b>Open a project:</b> start with <code>npx codecity-viewer</code>,
-          then choose a folder from the Project menu.</li>
-          <li><b>Survey districts first:</b> the biggest plates reveal the
-          architecture and where the mass of the code lives.</li>
-          <li><b>Find outliers:</b> look for the tallest, widest and reddest
-          buildings inside each district — that is where complexity hides.</li>
-          <li><b>Inspect one:</b> click a building to see its file, LOC, NOM,
-          NOA and dependency count, plus its <b>members</b> (methods/attributes) —
-          click a member to highlight the building. Press <b>copy path</b> to
-          jump to the source.</li>
-          <li><b>Study coupling:</b> hover buildings and follow the streets. A
-          cluster of mutually connected buildings is a tightly coupled module
-          and a candidate to split.</li>
-          <li><b>Switch metrics:</b> change <b>height</b>, <b>footprint</b> and
-          <b>colour</b> in the left panel to hunt different smells — e.g. map
-          <i>dependencies</i> onto height to expose coupling hotspots.</li>
-          <li><b>Focus:</b> use <b>search</b> to fly to a class, and the
-          <b>district</b> filter to isolate a package; toggle <b>streets</b>
-          and <b>grid</b> to declutter.</li>
-          <li><b>Confirm in the source:</b> metrics are a map, not a verdict —
-          always open the file before acting.</li>
-        </ol>
-
-        <h3>Quick reference</h3>
-        <table class="help-table">
-          <tbody>
-            <tr><td>Drag</td><td>orbit the city</td></tr>
-            <tr><td>Wheel</td><td>zoom</td></tr>
-            <tr><td>Right-drag</td><td>pan</td></tr>
-            <tr><td>Click</td><td>select a building → details (+ members)</td></tr>
-            <tr><td>query box</td><td>tag matching buildings, dim the rest (<code>loc&gt;200</code>, <code>type:class</code>…)</td></tr>
-            <tr><td>☰</td><td>building list (keyboard / screen readers)</td></tr>
-            <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>select previous / next building</td></tr>
-            <tr><td>⟳</td><td>auto-orbit tour</td></tr>
-            <tr><td>⌂</td><td>reset the camera</td></tr>
-            <tr><td>?</td><td>open / close this help</td></tr>
-          </tbody>
-        </table>
-
-        <p class="help-note">Metrics are exact when built from a CodeGraph
-        index and <b>estimates</b> when built by the source scanner
-        (<code>--source scan</code>), which approximates per-class methods,
-        attributes and LOC. Python uses the standard-library parser;
-        JS/TS and other languages use estimates from regexes.</p>
-      </div>
+      <div class="help-body"></div>
     </div>
   </div>
 

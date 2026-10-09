@@ -18,7 +18,7 @@
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .advanced-controls { display: flex; flex-direction: column; gap: 12px; }
 .simple-intro { margin: 0 0 6px; color: var(--muted); line-height: 1.6; }
-html[data-mode="simple"] [data-advanced], html[data-mode="simple"] #history-toggle,
+html[data-mode="simple"] [data-advanced],
 html[data-mode="simple"] #source-badge { display: none !important; }
 html[data-mode="advanced"] [data-simple] { display: none !important; }
 html[data-mode="simple"] #controls { width: min(280px,calc(100vw - 28px)); padding: 18px; }
@@ -26,6 +26,7 @@ html[data-mode="simple"] #controls .panel-body { gap: 16px; }
 html[data-mode="simple"] #controls.folded { width: 160px; }
 html[data-mode="simple"] #controls label:not(.pill) { text-transform: none; font-size: 12px; letter-spacing: 0; color: var(--text); }
 html[data-mode="simple"] #controls .panel-title { display: none; }
+html[data-mode="simple"] #controls .metrics-title { display: block; }
 html[data-mode="simple"] #legend .legend-notes { font-size: 12px; line-height: 1.6; }
 html[data-mode="simple"] #details .details-actions { padding-block: 8px; }
 html[data-mode="simple"] #details .source-section { border-top: 1px solid var(--panel-border); padding-top: 12px; }
@@ -671,8 +672,8 @@ body:has(#details.open) #hint { visibility: hidden; }
 #details.auto-hidden { padding-bottom: 0; }
 #auto-hide-panels.active { background: rgba(129,227,194,.18); border-color: #81e3c2; }
 .quality-examples { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
-.quality-example { padding: 14px; border: 1px solid var(--panel-border); border-radius: 12px; background: rgba(255,255,255,.03); }
-.quality-example svg { width: 100%; max-height: 150px; display: block; }
+.quality-example { margin: 0; padding: 14px; border: 1px solid var(--panel-border); border-radius: 12px; background: rgba(255,255,255,.03); }
+.quality-example svg { width: 100%; height: auto; display: block; margin-bottom: 8px; }
 .quality-example p { font-size: 12px; color: var(--muted); }
 .quality-table th, .quality-table td { text-align: start; }
 .quality-table td:first-child { white-space: normal; }

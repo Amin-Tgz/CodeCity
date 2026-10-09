@@ -10,11 +10,12 @@ metaphor introduced by Richard Wettel and Michele Lanza
 | package / folder         | **district**  |
 | number of methods (NOM)  | building **height** |
 | number of attributes (NOA)| building **footprint** |
-| lines of code (LOC)      | building **colour** (grey → intense blue) |
+| lines of code (LOC)      | building **colour** (slate → teal → gold → crimson) |
 | imports / calls          | **streets** between buildings (with pedestrians) |
 
-Bigger, taller, bluer buildings = bigger, busier, heavier classes. Districts
-are groups of classes that live in the same folder/package.
+With the default mapping, taller buildings have more methods, wider buildings
+have more attributes, and warmer colours indicate more source lines. Districts
+group classes that live in the same folder/package.
 
 It is **reusable for any folder**, renders with **three.js**, and runs
 **fully offline** once the vendor files are downloaded.
@@ -24,6 +25,18 @@ It is **reusable for any folder**, renders with **three.js**, and runs
 CodeCity runs on Node.js 22.13 or newer. It starts in **Simple** mode with an
 empty city. Choose **Project → Open project** and select a folder. Source is
 scanned locally without installing or executing the project's dependencies.
+
+Simple mode includes **Map metrics** and **Git history**. Search, district
+filters, and street controls are available in Advanced mode. Set height,
+footprint, colour, and mapping, then click **Save as default** to store them in
+`~/.codecity/profile.json` (on Windows, `%USERPROFILE%\.codecity\profile.json`).
+This profile is loaded at the next launch, including when the launcher uses a
+different port. Changes are temporary until saved. Tooltips and the help guide
+follow the selected interface language.
+
+Git commit inspection reads blobs incrementally and discards binary assets.
+It uses the same 2 MB per-file limit as source scanning, with limits of 128 MB
+of retained source, 256 MB of transferred objects, and 20,000 candidate files.
 
 From this checkout, launch with one command; no dependency install is needed:
 
