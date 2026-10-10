@@ -7,7 +7,8 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 Explore your codebase as an interactive **3D city**. Classes and modules become
-buildings, folders become districts, and dependencies connect them with streets.
+buildings and folders become districts. Select a building to illuminate related
+buildings and explore its dependencies in an interactive map beside the city.
 CodeCity scans source locally without installing or executing your project's code.
 
 ![CodeCity showing a locally scanned project](docs/images/codecity.png)

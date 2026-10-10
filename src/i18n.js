@@ -3,11 +3,13 @@ import qualityMessages from './quality-strings.js';
 import helpMessages from './help-strings.js';
 import controlMessages from './control-strings.js';
 import inspectionMessages from './inspection-strings.js';
+import relationshipMessages from './relationship-strings.js';
 import {applyTooltips} from './tooltips.js';
 export const locales=['en','es','fr','de','zh','ja','ar','fa'];
 let locale='en';
 // Entries: Spanish, French, German, Chinese, Japanese, Arabic, Persian.
 const messages={
+  ...relationshipMessages,
   ...helpMessages,
   ...controlMessages,
   ...inspectionMessages,
@@ -166,7 +168,7 @@ export function translate(root=document.body) {
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
   let node;
   while((node=walker.nextNode())) {
-    if(node.parentElement.closest('script,style,.details-name,.details-sub,.member-name,.lr-name,.lr-meta,.recent-project,.folder-row,.infra-names,#folder-path'))continue;
+    if(node.parentElement.closest('script,style,.details-name,.details-sub,.member-name,.dependency-node,.lr-name,.lr-meta,.recent-project,.folder-row,.infra-names,#folder-path'))continue;
     const text=node.textContent,trimmed=text.trim();
     const old=sources.get(node);
     const source=old?.last===text?old.source:(reverse.get(trimmed)||trimmed);

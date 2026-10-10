@@ -5,6 +5,8 @@ import { validateModel } from '../src/model.js';
 import {StreetRouter,Point3} from '../src/routing.js';
 import {sharedConnections,directConnections,connectionWidth} from '../src/connections.js';
 import inspectionMessages from '../src/inspection-strings.js';
+import relationshipMessages from '../src/relationship-strings.js';
+import {relationshipNeighbors,relationshipRole} from '../src/relationships.js';
 import {validateProfile} from '../server/profile.cjs';
 
 let passed = 0;
@@ -68,5 +70,19 @@ test('all investigation and relationship messages cover all seven translated lan
 });
 test('old coverage profiles migrate to lines without losing other preferences',()=>{
   assert.deepEqual(validateProfile({mapping:{height:'deps',footprint:'loc',color:'coverage',mode:'linear'}}).mapping,{height:'deps',footprint:'loc',color:'loc',mode:'linear'});
+});
+test('relationship neighborhoods retain weights, direction and reciprocal links without self duplicates',()=>{
+  const roads=[{a:'a',b:'b',weight:2},{a:'a',b:'b',weight:3},{a:'b',b:'a',weight:4},{a:'c',b:'a',weight:1},{a:'a',b:'a',weight:7},{a:'c',b:'d',weight:9}];
+  const neighbors=relationshipNeighbors(roads,'a');
+  assert.equal(neighbors.size,2);assert.deepEqual(neighbors.get('b'),{incoming:4,outgoing:5});
+  assert.equal(relationshipRole(neighbors.get('b')),'both');assert.equal(relationshipRole(neighbors.get('c')),'incoming');
+  assert.equal(relationshipRole(relationshipNeighbors(roads,'c').get('d')),'outgoing');
+  assert.equal(relationshipNeighbors(roads,'isolated').size,0);
+});
+test('relationship interface messages cover every locale and preserve placeholders',()=>{
+  for(const [key,values] of Object.entries(relationshipMessages)){
+    assert.equal(values.length,7,key);
+    for(const value of values){assert.ok(value.length,key);assert.deepEqual([...value.matchAll(/\{\w+\}/g)].map(m=>m[0]).sort(),[...key.matchAll(/\{\w+\}/g)].map(m=>m[0]).sort(),key);}
+  }
 });
 console.log(`${passed} frontend unit tests passed`);

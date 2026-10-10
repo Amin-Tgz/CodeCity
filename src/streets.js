@@ -12,7 +12,7 @@ import { roadTexture, streetTexture } from './textures.js';
 // ---------------------------------------------------------------------------
 
 import {StreetRouter,STREET_Y,TIERS} from './routing.js';
-import {sharedConnections,directConnections} from './connections.js';
+import {sharedConnections} from './connections.js';
 export {STREET_Y} from './routing.js';
 const TILE=6;
 function disposeObject(object) {
@@ -34,7 +34,7 @@ export class StreetNetwork extends StreetRouter {
     this.walkerMesh = null;
     this.focusWalkers = [];
     this.focusWalkerMesh = null;
-    this.mode = 'all';      // all | selected | off
+    this.mode = 'selected';      // all | selected | off
     this.focusId = null;
     this._mats = [];
     this._focusMats = [];
@@ -64,7 +64,7 @@ export class StreetNetwork extends StreetRouter {
   }
 
   _applyPlan({paths,unroutedEdges}) {
-    // Worker failures also retain a visible shared representation.
+    // Retain grouped evidence for the inspector, without floating city roads.
     if(unroutedEdges.length){paths=[...paths,...sharedConnections(unroutedEdges,this.by)];unroutedEdges=unroutedEdges.filter(e=>!this.by.has(e.a)||!this.by.has(e.b));}
     for(const p of paths)p.pts=p.pts.map(v=>new THREE.Vector3(v.x,v.y,v.z));
     this.paths=paths;this.unroutedEdges=unroutedEdges;this.unrouted=unroutedEdges.length;
@@ -82,25 +82,7 @@ export class StreetNetwork extends StreetRouter {
   _meshFromPaths(paths, group, matsArr) {
     const buckets = new Map();
     for (const p of paths) {
-      if(p.shared||p.tier==='direct'){
-        const geometry=new THREE.BufferGeometry(),positions=[],indices=[];
-        for(let i=1;i<p.pts.length;i++){
-          const a=p.pts[i-1],b=p.pts[i],direction=new THREE.Vector3().subVectors(b,a).normalize();
-          const normal=new THREE.Vector3(-direction.z,0,direction.x);
-          if(normal.lengthSq()<1e-8)normal.set(1,0,0);else normal.normalize();
-          normal.multiplyScalar(p.width/2);const base=positions.length/3;
-          for(const [point,sign] of [[a,1],[b,1],[b,-1],[a,-1]])positions.push(point.x+normal.x*sign,point.y,point.z+normal.z*sign);
-          indices.push(base,base+1,base+2,base,base+2,base+3);
-        }
-        geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
-        const material=new THREE.MeshStandardMaterial({color:p.shared?'#ddb65c':'#38bdf8',side:THREE.DoubleSide,roughness:.8});
-        const mesh=new THREE.Mesh(geometry,material);mesh.userData.connection=p;group.add(mesh);matsArr.push(material);
-        // A static arrow preserves direction when animations are paused.
-        let segment=1;for(let i=2;i<p.pts.length;i++)if(p.pts[i].distanceTo(p.pts[i-1])>p.pts[segment].distanceTo(p.pts[segment-1]))segment=i;
-        const a=p.pts[segment-1],b=p.pts[segment],dir=new THREE.Vector3().subVectors(b,a).normalize();
-        const arrow=new THREE.ArrowHelper(dir,new THREE.Vector3().lerpVectors(a,b,.55).add(new THREE.Vector3(0,.1,0)),Math.min(3,a.distanceTo(b)*.3),p.shared?0xfff0b3:0x67e8f9,1,.7);
-        group.add(arrow);continue;
-      }
+      if(p.shared || p.tier==='direct') continue;
       if (!buckets.has(p.tier)) buckets.set(p.tier, { pos: [], uv: [], idx: [], count: 0 });
       this._emitQuads(buckets.get(p.tier), p.pts, p.width);
     }
@@ -166,6 +148,7 @@ export class StreetNetwork extends StreetRouter {
   _makeWalkerMesh(paths) {
     const walkers = [];
     for (const p of paths) {
+      if(p.shared || p.tier==='direct') continue;
       const pts = p.pts;
       const cum = [0];
       let total = 0;
@@ -224,7 +207,6 @@ export class StreetNetwork extends StreetRouter {
     this.walkers = [];
     this.walkerMesh = null;
     const paths = this.paths.filter(p=>!p.shared&&ids.has(p.a)&&ids.has(p.b));
-    paths.push(...sharedConnections(this.paths.filter(p=>p.shared).flatMap(p=>p.edges).filter(e=>ids.has(e.a)&&ids.has(e.b)),this.by));
     for(const p of paths)p.pts=p.pts.map(v=>new THREE.Vector3(v.x,v.y,v.z));
     this._meshFromPaths(paths, this.group, this._mats);
     this._buildWalkers(paths);
@@ -248,27 +230,6 @@ export class StreetNetwork extends StreetRouter {
     this._focusMats = [];
     this.focusWalkers = [];
     this.focusWalkerMesh = null;
-    if (this.focusId) {
-      const subset=directConnections(this.model.roads.filter(e=>e.a===id||e.b===id),this.by);
-      for(const p of subset)p.pts=p.pts.map(v=>new THREE.Vector3(v.x,v.y,v.z));
-      this._meshFromPaths(subset, this.focusGroup, this._focusMats);
-      this.focusGroup.position.y = 0.035;
-      for (const mat of this._focusMats) {
-        mat.color.set('#38bdf8');
-        mat.emissive.set('#38bdf8');
-        mat.emissiveIntensity = 0.65;
-      }
-      const wm = this._makeWalkerMesh(subset);
-      if (wm) {
-        wm.mesh.material.color.set('#67e8f9');
-        wm.mesh.material.emissive.set('#22d3ee');
-        wm.mesh.material.emissiveIntensity = 1.5;
-        this.focusGroup.add(wm.mesh);
-        this.focusWalkerMesh = wm.mesh;
-        this.focusWalkers = wm.walkers;
-        this._stepWalkers(this.focusWalkers, this.focusWalkerMesh, 0);
-      }
-    }
     this._refreshVisibility();
   }
 

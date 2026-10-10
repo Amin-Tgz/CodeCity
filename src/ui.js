@@ -27,7 +27,7 @@ export function renderRoadStats(city) {
   if(!el||!city.street)return;
   const count=city.street.paths.reduce((n,p)=>n+(p.shared?p.edges.length:1),0);
   el.textContent=t('{shown}/{total} connections represented',{shown:count,total:city.model.roads.length});
-  el.title=t('Shared routes combine dependencies. Width and pedestrian density indicate total weight. Arrows show direction; pedestrians represent code links, not users.');
+  el.title=t('Select a building to highlight its neighbors and explore the dependency map.');
 }
 
 export function renderConnectionDetails(path,{city,onSelect,onClose}) {

@@ -226,7 +226,7 @@ function showConnection(path) {
   UI.renderConnectionDetails(path,{city,onSelect:focusBuilding,onClose:()=>{city.highlightSubset(null);showDetails(null);}});updateHudOffset();
 }
 window.addEventListener('streetsready',event=>{renderDirty=true;if(city?.street===event.detail){UI.renderRoadStats(city);renderSharedConnections(city,showConnection);if(activeBuilding)showDetails(activeBuilding);}});
-window.addEventListener('routingerror',()=>{document.getElementById('project-status').textContent=t('Ground routing is unavailable. All identified connections are shown as shared routes.');});
+window.addEventListener('routingerror',()=>{document.getElementById('project-status').textContent=t('Ground routing is unavailable. Connections remain available in the dependency map.');});
 window.addEventListener('exploreopen',()=>{showDetails(null);city?.select(null);});
 
 function focusBuilding(b) {
@@ -273,7 +273,6 @@ canvas.addEventListener('pointerup', (e) => {
   pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
   const hit = city.hover(pointer, camera);
-  if(!hit&&city.street?.group.visible){const ray=new THREE.Raycaster();ray.setFromCamera(pointer,camera);const route=ray.intersectObjects(city.street.group.children,false).find(h=>h.object.userData.connection?.shared);if(route){showConnection(route.object.userData.connection);return;}}
   const b = city.select(hit);
   showDetails(b);
 });

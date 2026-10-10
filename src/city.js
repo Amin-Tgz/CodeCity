@@ -14,10 +14,12 @@ function colorFor(b, cKey, cMin, cMax) {
 }
 import { facadeTextures, applyWindowUV } from './textures.js';
 import { StreetNetwork, STREET_Y } from './streets.js';
+import {relationshipNeighbors, relationshipRole} from './relationships.js';
 
 const GROUND_SIZE = 260;
 const HOVER = new THREE.Color('#38bdf8');
 const SELECT = new THREE.Color('#f8fafc');
+const RELATED = {incoming: new THREE.Color('#38bdf8'), outgoing: new THREE.Color('#fbbf24'), both: new THREE.Color('#c084fc')};
 // Buildings are shrunk + margined to leave orthogonal street corridors between
 // them (with the default treemap packing the median gap is only ~0.9u).
 const BODY_FACTOR = 0.6;
@@ -49,7 +51,9 @@ export class City {
     this.hoveredId = null;
     this._facade = facadeTextures();
     this.street = null;
-    this.streetMode = 'all';
+    this.streetMode = 'selected';
+    this.related = new Map();
+    this.relationshipPulse = 0;
     this.focusId = null;
     this.camera = null;
     this.highlightSet = null;
@@ -96,14 +100,20 @@ export class City {
   setStreetMode(mode) {
     this.streetMode = mode;
     if (this.street) this.street.setMode(mode);
+    if(mode==='off')this.relationshipPulse=0;
+    this._refreshAppearance();
   }
 
   setRoadsVisible(v) { this.setStreetMode(v ? 'all' : 'off'); }
 
   // relationship-on-demand: focus a building's incident streets
   setFocusBuilding(id) {
+    const changed=this.focusId!==(id||null);
     this.focusId = id || null;
+    this.related=this.focusId?relationshipNeighbors(this.model.roads,this.focusId):new Map();
+    if(changed)this.relationshipPulse=this.focusId&&this.streetMode!=='off'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&!document.getElementById('pause-motion')?.checked ? .65 : 0;
     if (this.street) this.street.setFocus(this.focusId);
+    this._refreshAppearance();
   }
 
   dispose() {
@@ -136,6 +146,10 @@ export class City {
   // Walk the pedestrians and apply distance-based level of detail.
   update(dt) {
     if (this.street) this.street.update(dt);
+    if(this.relationshipPulse>0){
+      this.relationshipPulse=dt>0?Math.max(0,this.relationshipPulse-dt):0;
+      for(const id of this.related.keys())this._restore(id);
+    }
     this._lodAcc += dt;
     if (this._lodAcc > 0.4) { this._lodAcc = 0; this._updateLOD(); }
   }
@@ -394,6 +408,15 @@ export class City {
     if (this.highlightSet) {
       if (this.highlightSet.has(id)) { color = HOVER; intensity = 0.55; }
       else opacity = 0.12;
+    }
+    if(this.focusId && this.streetMode!=='off') {
+      const related=this.related.get(id);
+      if(id===this.focusId)opacity=1;
+      else if(related){
+        color=RELATED[relationshipRole(related)];
+        intensity=.45+.8*Math.sin(Math.PI*this.relationshipPulse/.65);
+        opacity=1;
+      } else opacity=Math.min(opacity,.24);
     }
     if (id === this.hoveredId) { color = HOVER; intensity = 0.45; }
     if (id === this.selected?.userData.buildingId) { color = SELECT; intensity = 0.5; }

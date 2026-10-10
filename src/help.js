@@ -26,18 +26,19 @@ export const HELP_SECTIONS=[
     'Advanced details include metric evidence, members, incoming and outgoing links, and cycles. Select a member to preview its lines. Editor link settings accepts {path}, {line}, and {end} placeholders.',
   ]],
   ['Advanced tools',[
-    'District limits the view to one folder. Streets can show the overview, only the selected building’s connections, or none.',
+    'Highlight related buildings',
     'Evidence-based candidates for review. Generated code is excluded.',
   ]],
   ['Investigate',Object.values(PRESETS).map(p=>p.explain)],
   ['Shared connections',[
-    'Shared routes combine dependencies. Width and pedestrian density indicate total weight. Arrows show direction; pedestrians represent code links, not users.',
+    'Select a building to highlight its neighbors and explore the dependency map.',
+    'Related buildings glow briefly on selection. Blue is incoming, amber is outgoing, and purple is both directions. Pause animations and reduced motion disable the pulse.',
     'No connection was identified in the project analysis. This does not prove independence.',
   ]],
   ['Navigation and tips',[
     'Drag to orbit, wheel to zoom, and right-drag to pan. [ and ] select previous and next buildings. ⌂ resets the view, ☰ opens the building list, and ? opens help. Escape closes help.',
     'Pause animations stops pedestrians and ambient motion. Camera rotation and Git playback have separate controls.',
-    'Connections across districts or without a ground route are shown as elevated shared routes. Click a route to inspect its links, or select a building to see all its direct connections.',
+    'Select a node to explore its connections.',
   ]],
 ];
 

@@ -700,3 +700,21 @@ body:has(#details.open) #hint { visibility: hidden; }
 #minimap svg { width: 100%; max-height: 160px; background: #0f1b20; }
 .map-package { fill: none; stroke: #759d94; stroke-width: .3; }
 .map-building { cursor: pointer; stroke: #cdf7df; stroke-width: .1; }
+
+.relationship-diagram { margin-block: 12px 18px; padding-bottom: 14px; border-bottom: 1px solid var(--panel-border); }
+.relationship-diagram h3 { margin: 0 0 10px; font-size: 14px; }
+.relationship-diagram svg { display: block; width: 100%; height: auto; }
+.relationship-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; }
+.relationship-legend span::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-inline-end: 5px; }
+.relationship-diagram .incoming { color: #38bdf8; fill: #38bdf8; }
+.relationship-diagram .outgoing { color: #fbbf24; fill: #fbbf24; }
+.relationship-diagram .both { color: #c084fc; fill: #c084fc; }
+.dependency-edge { fill: none !important; stroke-width: 1.5; }
+.dependency-edge.incoming { stroke: #38bdf8; }
+.dependency-edge.outgoing { stroke: #fbbf24; }
+.dependency-node { cursor: pointer; outline: none; }
+.dependency-node rect { fill: #142331; stroke: currentColor; stroke-width: 1; }
+.dependency-node.selected { color: #f8fafc; }
+.dependency-node.selected rect { fill: #2a3f4f; }
+.dependency-node text { fill: #edf4f8; font: 10px system-ui, sans-serif; pointer-events: none; }
+.dependency-node:hover rect, .dependency-node:focus-visible rect { stroke-width: 2.5; fill: #294252; }

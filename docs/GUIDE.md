@@ -150,8 +150,13 @@ minimized. **Auto-hide** folds idle panels after 1.5 seconds; hovering their
 header or moving keyboard focus into them reveals the contents. The setting
 is remembered. Responsive controls use full-width selectors and scroll when
 the window is short. The top bar wraps without covering the Explore panel.
-Selecting a building highlights its incident streets and pedestrians in
-both **all** and **selected** street modes. **Off** hides all streets.
+Selecting a building highlights its neighbors and dims unrelated buildings.
+Blue indicates incoming dependencies, amber outgoing, and purple both directions.
+A brief light pulse introduces the related buildings; paused animations and
+reduced motion disable it. The dependency map in the details panel has directed
+arrows and selectable nodes, with keyboard support and expandable neighbor lists.
+**Highlight related buildings** is the default. **Ground streets** adds local
+streets; **Off** disables city relationship highlighting and streets.
 
 Building details have **copy path** and **Open in file manager** actions.
 On Windows, Explorer selects the source file; on Linux, `xdg-open` opens its
@@ -392,15 +397,11 @@ and outgoing identified connections.
 ## Notes
 
 - Project models are scanned by the Node launcher when you open a folder.
-- Ground streets show local dependencies. Links across packages or terraces,
-  links without a ground route, and links beyond the ground drawing budget are
-  grouped into directed elevated routes. Route width and pedestrian density
-  indicate total weight; pedestrians represent code links, not actual users.
-  Click a shared route (or choose it in the shared connections list) to inspect
-  its edges and select either endpoint. Selecting a building shows every direct
-  incoming/outgoing link, with arrows, independently of the overview budget.
-  The top bar reports represented links rather than counting shared routes as
-  single dependencies. A building with no identified links is labelled as such;
+- Optional ground streets show local dependencies. Connections without a ground
+  route are retained in the shared connections list and dependency map, with no
+  elevated roads. Selecting a building shows its incoming/outgoing neighbors
+  independently of the ground drawing budget. The top bar counts individual
+  represented links. A building with no identified links is labelled as such;
   absence of evidence does not establish independence.
 - **Pause animations** stops ambient motion and pedestrians. Auto-orbit and
   Git playback have separate controls.

@@ -34,8 +34,9 @@ export async function runConnectionChecks() {
     assert(document.querySelectorAll('#details .member-row').length===route.edges.length*2,'route endpoints missing');
     document.querySelector('#details .member-row').click();await tick();
     const id=city.focusId,expected=city.model.roads.filter(edge=>edge.a===id||edge.b===id).length;
-    const visible=city.street.focusGroup.children.filter(mesh=>mesh.userData.connection).length;
-    assert(expected>0&&visible===expected,'selected building direct connections missing');
+    assert(expected>0&&city.street.focusGroup.children.length===0,'floating connections remain');
+    assert(document.querySelector('.relationship-diagram svg'),'selected building dependency map missing');
+    assert(city.related.size>0,'related buildings were not highlighted');
     assert(document.querySelector('#details summary')||document.querySelector('#details .source-section'),'building details missing');
     document.getElementById('details-close').click();
   });

@@ -2,6 +2,7 @@ import {request} from './projects.js';
 import {excludePart} from './exclusions.js';
 import {editorLink,graphIndex,PRESETS,rankCandidates} from './investigation.js';
 import {t} from './i18n.js';
+import {drawRelationshipDiagram} from './relationship-diagram.js';
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n;};
 export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   const graph=city.graph||(city.graph=graphIndex(city.model));
@@ -9,6 +10,7 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   const pieces=b.district==='.'?[]:b.district.split('/');
   for(let i=0;i<=pieces.length;i++){const id=i?pieces.slice(0,i).join('/'):'',button=el('button',i?pieces[i-1]:'Project','mini-btn');button.onclick=()=>{city.applyFilter(id);document.getElementById('filter').value=id;};crumb.append(button);}
   host.prepend(crumb);
+  drawRelationshipDiagram(host,b,city,onSelect);
   if(city.model.meta.source==='scan'&&!city.model.meta.commit&&!city.model.meta.comparisonSources) {
     const actions=el('div',null,'query-actions');actions.dataset.advanced='';
     for(const [label,rule] of [['Exclude class / module',{kind:'symbol',value:b.id}],['Exclude file',{kind:'file',value:b.file}],['Exclude folder',{kind:'folder',value:b.district}]]){const button=el('button',label,'mini-btn');button.onclick=()=>excludePart(rule);actions.append(button);}
@@ -77,7 +79,7 @@ export function renderSharedConnections(city,onSelect) {
   const host=document.getElementById('shared-connections');if(!host)return;
   host.replaceChildren();
   const heading=el('summary',t('Shared connections'));host.append(heading);
-  host.append(el('p',t('Shared routes combine dependencies. Width and pedestrian density indicate total weight. Arrows show direction; pedestrians represent code links, not users.'),'muted-note'));
+  host.append(el('p',t('Select a building to highlight its neighbors and explore the dependency map.'),'muted-note'));
   for(const path of city.street?.paths||[])if(path.shared){
     const button=el('button',`${path.from} → ${path.to} · ${t('{n} connections · weight {weight}',{n:path.edges.length,weight:path.weight})}`,'member-row');
     button.title=t('Inspect the connections represented by this route.');button.onclick=()=>onSelect(path);host.append(button);
