@@ -24,6 +24,8 @@
     "index.html",
     "styles.css",
     "README.md",
+    "README.fa.md",
+    "docs",
     "scripts/install.ps1",
     "scripts/install.sh"
   ],
