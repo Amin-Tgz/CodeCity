@@ -13,7 +13,7 @@ export async function initProfile() {
   for(const id of Object.values(fields))document.getElementById(id).addEventListener('change',()=>show('Changes are temporary until you save them as default.'));
   try {
     const {profile}=await request('profile',null,'GET');
-    for(const [key,id] of Object.entries(fields))document.getElementById(id).value=profile.mapping[key];
+    for(const [key,id] of Object.entries(fields))document.getElementById(id).value=key==='color'&&profile.mapping[key]==='coverage'?'loc':profile.mapping[key];
   } catch {show('Default metrics could not be loaded. Start CodeCity with npm to use your profile.');}
   const button=document.getElementById('metric-profile-save');
   button.onclick=async()=>{

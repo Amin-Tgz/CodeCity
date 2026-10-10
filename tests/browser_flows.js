@@ -5,8 +5,9 @@ export async function runBrowserFlows(page) {
     const a=document.querySelector('#auto-hide-panels');if(a.getAttribute('aria-pressed')==='true')a.click();
     document.getElementById('details-close')?.click();
     const c=document.getElementById('controls');if(c.classList.contains('folded'))c.querySelector('.panel-fold').click();
-    document.getElementById('search').value=window.__codecity.model.buildings[0].name;
-    document.getElementById('search-form').dispatchEvent(new Event('submit',{cancelable:true}));
+    document.getElementById('list-btn').click();
+    document.querySelector('.list-row').click();
+    document.getElementById('list-close').click();
   });
   assert(await page.evaluate(()=>{
     const p=document.getElementById('controls'),d=document.getElementById('details');

@@ -105,35 +105,12 @@
   <aside id="controls">
     <p class="simple-intro" data-simple>Select a building to explore its source. Change metrics or play its Git history below.</p>
 
-    <div class="ctrl-row" data-advanced hidden>
-      <label for="search">search</label>
-      <form id="search-form">
-        <input id="search" type="search" placeholder="class or file name…" autocomplete="off" />
-        <button type="submit" class="ghost-btn">go</button>
-      </form>
-    </div>
-
-    <div class="ctrl-row" data-advanced hidden>
+<div class="ctrl-row" data-advanced hidden>
       <label for="filter">district</label>
       <select id="filter"></select>
     </div>
 
-    <div data-advanced hidden class="advanced-controls">
-    <div class="ctrl-row">
-      <label for="query">query / tag</label>
-      <form id="query-form">
-        <input id="query" type="search" placeholder="type:class  loc>200  lang:ts" autocomplete="off" />
-        <button type="submit" class="ghost-btn">run</button>
-      </form>
-      <div class="query-actions">
-        <button id="query-clear" class="mini-btn">clear</button>
-        <button id="query-save" class="mini-btn">save…</button>
-        <select id="query-saved" title="saved queries"></select>
-      </div>
-      <div id="query-count" class="muted-note" role="status"></div>
-    </div>
 
-    </div>
     <div class="panel-title metrics-title">Map metrics</div>
     <div class="ctrl-grid">
       <label for="sel-height">height</label>
@@ -157,7 +134,6 @@
         <option value="noa">attributes (NOA)</option>
         <option value="deps">dependencies</option>
         <option value="language">language</option>
-        <option value="coverage" id="opt-coverage">coverage</option>
       </select>
       <label for="sel-mode">mapping</label>
       <select id="sel-mode">
@@ -177,6 +153,7 @@
     <div data-advanced hidden class="advanced-controls">
     <div class="panel-title">Investigate</div>
     <div id="investigations"></div>
+    <details id="shared-connections"></details>
     <details><summary>Package minimap</summary><div id="minimap"></div></details>
     </div>
     <div class="panel-title">Layers</div>
@@ -190,7 +167,7 @@
     </div>
     <div class="toggles">
       <label class="pill" data-advanced hidden><input type="checkbox" id="chk-grid" checked /><span>grid</span></label>
-      <label class="pill"><input type="checkbox" id="pause-motion" /><span>pause motion</span></label>
+      <label class="pill"><input type="checkbox" id="pause-motion" /><span>Pause animations</span></label>
     </div>
   </aside>
 

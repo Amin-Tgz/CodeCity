@@ -1,5 +1,6 @@
 import {t} from './i18n.js';
 import {renderQualityGuide} from './quality-guide.js';
+import {PRESETS} from './investigation.js';
 
 export const HELP_SECTIONS=[
   ['Getting started',[
@@ -7,13 +8,13 @@ export const HELP_SECTIONS=[
     'Open recent reopens a saved folder. Close project clears the city. Exclusions hide files, folders, symbols, or path patterns; Apply rescans, and removing a rule restores them.',
   ]],
   ['Interface mode',[
-    'Simple mode includes metric mapping, saved defaults, Git history, building details, and source preview. Advanced adds search, district filtering, street controls, queries, and investigations. Your mode is remembered.',
+    'Advanced adds district filtering, street controls, and investigations. Your mode is remembered.',
   ]],
   ['Map metrics',[
     'Height controls how tall buildings are; footprint controls their ground area; colour controls their surface tint. Change each independently and check the legend for the current meaning.',
     'NOM counts methods; NOA counts attributes; LOC counts source lines. Dependencies measures connected links. Select a metric value in building details to inspect its evidence in Advanced mode.',
     'Boxplot groups sizes into five categories using this project’s quartiles and whiskers. Threshold uses fixed bands. Linear varies sizes continuously with compressed height so large buildings remain readable.',
-    'Language assigns a distinct colour to each language. Coverage uses red for low and green for high coverage; grey means unknown. Import a file coverage JSON report under Advanced investigations.',
+    'Dependencies sums the weights of identified incoming and outgoing connections. Language colours indicate programming languages, not interface languages.',
     'Save as default writes height, footprint, colour, and mapping to your user profile. The saved mapping loads on the next app launch for any project. Unsaved changes affect this session.',
   ]],
   ['Git history',[
@@ -25,14 +26,18 @@ export const HELP_SECTIONS=[
     'Advanced details include metric evidence, members, incoming and outgoing links, and cycles. Select a member to preview its lines. Editor link settings accepts {path}, {line}, and {end} placeholders.',
   ]],
   ['Advanced tools',[
-    'Search finds a class or file and moves the camera to it. District limits the view to one folder. Streets can show all links, only the selected building’s links, or none.',
-    'Queries tag matching buildings and dim the rest. Combine filters such as loc>200, type:class, and lang:ts. Run applies the query, clear removes it, and save stores a named query.',
-    'Investigations rank review candidates by size, coupling, complexity, churn, or coverage. Generated code is excluded. Use sorting to explore results; select a minimap building to inspect it.',
+    'District limits the view to one folder. Streets can show the overview, only the selected building’s connections, or none.',
+    'Evidence-based candidates for review. Generated code is excluded.',
+  ]],
+  ['Investigate',Object.values(PRESETS).map(p=>p.explain)],
+  ['Shared connections',[
+    'Shared routes combine dependencies. Width and pedestrian density indicate total weight. Arrows show direction; pedestrians represent code links, not users.',
+    'No connection was identified in the project analysis. This does not prove independence.',
   ]],
   ['Navigation and tips',[
     'Drag to orbit, wheel to zoom, and right-drag to pan. [ and ] select previous and next buildings. ⌂ resets the view, ☰ opens the building list, and ? opens help. Escape closes help.',
-    'Panel headers fold or expand controls. Auto-hide folds idle panels in Advanced mode. Pause motion stops ambient animation; pause Git playback separately. Auto-orbit rotates the camera.',
-    'Compare similar classes inside a district, then confirm outliers in source and tests. Some dependency links cannot be drawn as streets; inspect the link list. Estimates and missing links limit conclusions.',
+    'Pause animations stops pedestrians and ambient motion. Camera rotation and Git playback have separate controls.',
+    'Connections across districts or without a ground route are shown as elevated shared routes. Click a route to inspect its links, or select a building to see all its direct connections.',
   ]],
 ];
 
@@ -41,7 +46,7 @@ export function renderHelp(host) {
   for(const [title,paragraphs] of HELP_SECTIONS) {
     const section=document.createElement('section');
     const heading=document.createElement('h3');heading.textContent=t(title);section.append(heading);
-    for(const text of paragraphs){const p=document.createElement('p');p.textContent=t(text);section.append(p);}
+    for(const text of paragraphs){const p=document.createElement('p');const preset=Object.values(PRESETS).find(item=>item.explain===text);p.textContent=(preset?t(preset.label)+': ':'')+t(text);section.append(p);}
     host.append(section);
   }
   renderQualityGuide(host);

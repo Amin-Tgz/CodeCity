@@ -29,7 +29,7 @@ export async function runPublicProjectChecks(page, projectPath, name, {structura
     assert(model.totals.buildings>100&&model.rendered===model.totals.buildings&&model.renderCount>0,'full project scans, validates, and renders');
     assert(model.duplicateIds===0,'building identities are unique');
     assert(await page.locator('#sel-height').isVisible()&&await page.locator('#tl-play').isVisible(),'Simple exposes metrics and Git history');
-    for(const id of ['search','filter','sel-streets','query'])assert(!await page.locator('#'+id).isVisible(),`Simple hides ${id}`);
+    for(const id of ['filter','sel-streets'])assert(!await page.locator('#'+id).isVisible(),`Simple hides ${id}`);
 
     await page.locator('#sel-height').selectOption('deps');
     await page.locator('#sel-footprint').selectOption('loc');
@@ -41,8 +41,8 @@ export async function runPublicProjectChecks(page, projectPath, name, {structura
     await page.waitForFunction(()=>document.getElementById('metric-profile-status').textContent==='Default metrics saved for the next app launch.');
     await page.reload();await ready();
     assert(await page.evaluate(mapping=>JSON.stringify(window.__codecity.mapping)===JSON.stringify(mapping),desired),'saved profile restores after reload');
-    await page.locator('#sel-color').selectOption('coverage');
-    assert(await page.evaluate(()=>window.__codecity.mapping.color==='coverage'),'coverage mapping remains selectable without a report');
+    await page.locator('#sel-color').selectOption('language');
+    assert(await page.evaluate(()=>window.__codecity.mapping.color==='language'),'programming language mapping remains selectable');
     await page.locator('#sel-color').selectOption('language');
     assert(await page.locator('#metric-profile-status').textContent()==='Changes are temporary until you save them as default.','unsaved changes are identified');
 
@@ -57,18 +57,17 @@ export async function runPublicProjectChecks(page, projectPath, name, {structura
     await page.locator('.metric-explain[data-metric="loc"]').click();
     assert(await page.locator('html').getAttribute('data-mode')==='advanced'&&await page.locator('.metric-evidence').isVisible(),'metric explanation reveals Advanced evidence');
     await page.locator('#details-close').click();
-    await page.locator('#search').fill(model.sample.name);
-    await page.locator('#search-form button').click();
-    assert(await page.locator('#details').isVisible(),'Advanced search finds a building');
+    await page.locator('#list-btn').click();await page.locator('#list-filter').fill(model.sample.name);await page.locator(`.list-row[data-id="${model.sample.id}"]`).click();await page.locator('#list-close').click();
+    assert(await page.locator('#details').isVisible(),'Advanced building list selects a building');
     await page.locator('#details-close').click();
     await page.locator('#filter').selectOption(model.sample.district);
     assert(await page.evaluate(d=>window.__codecity.filterId===d,model.sample.district),'Advanced district filter applies');
     // District selection opens its first building and folds Explore; reopen it to query.
     if(await page.locator('#controls').evaluate(panel=>panel.classList.contains('folded')))await page.locator('#controls .panel-fold').click();
-    await page.locator('#query').fill('loc>0');await page.locator('#query-form button').click();
-    assert(await page.evaluate(()=>window.__codecity.querySet?.size>0),'Advanced query highlights matching buildings');
+    await page.locator('#investigations select').first().selectOption('fan-out');
+    assert(await page.evaluate(()=>window.__codecity.highlightSet instanceof Set),'Advanced investigation highlights candidates');
     await page.locator('[data-mode-choice="simple"]').click();
-    assert(await page.evaluate(()=>!window.__codecity.filterId&&!window.__codecity.querySet&&document.getElementById('query').value===''),'Simple clears hidden filters and query tags');
+    assert(await page.evaluate(()=>!window.__codecity.filterId&&!window.__codecity.highlightSet&&document.querySelector('#investigations select').value===''),'Simple clears hidden filters and investigation highlights');
 
     assert(model.historyFrames>1,'multiple real Git commits are available');
     await current();

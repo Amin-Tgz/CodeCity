@@ -1,6 +1,7 @@
 import {request} from './projects.js';
 import {excludePart} from './exclusions.js';
-import {editorLink,graphIndex,PRESETS,rankCandidates,importCoverage} from './investigation.js';
+import {editorLink,graphIndex,PRESETS,rankCandidates} from './investigation.js';
+import {t} from './i18n.js';
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n;};
 export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   const graph=city.graph||(city.graph=graphIndex(city.model));
@@ -45,13 +46,12 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
     }catch(e){if(seq===serial)status.textContent=e.message;}
   };
   show.onclick=()=>source();host.querySelectorAll('.member-row').forEach(button=>button.addEventListener('click',()=>source(Number(button.dataset.mi))));
-  const deps=el('details');deps.dataset.advanced='';deps.open=true;deps.append(el('summary','Dependencies and cycles'));
-  const cycle=graph.components.get(b.id);deps.append(el('p',cycle?`Cycle component: ${cycle.map(id=>graph.byId.get(id).name).join(' → ')}. Members are mutually reachable; this order is not a cycle path.`:'No directed cycle in the available graph.','muted-note'));
-  const routed=new Set((city.street?.paths||[]).map(p=>p.a+'\0'+p.b));
-  const skipped=new Map((city.street?.unroutedEdges||[]).map(e=>[e.a+'\0'+e.b,e.reason]));
+  const deps=el('details');deps.open=true;deps.append(el('summary',t('Dependencies and cycles')));
+  const cycle=graph.components.get(b.id);deps.append(el('p',cycle?t('Mutually reachable: {names}. This list is not a cycle path.',{names:cycle.map(id=>graph.byId.get(id).name).join(' → ')}):t('No directed cycle in the available graph.'),'muted-note'));
+  if(!graph.incoming.get(b.id).length&&!graph.outgoing.get(b.id).length)deps.append(el('p',t('No connection was identified in the project analysis. This does not prove independence.'),'muted-note'));
   for(const [label,edges,target] of [['Outgoing',graph.outgoing.get(b.id),'b'],['Incoming',graph.incoming.get(b.id),'a']]) {
-    deps.append(el('p',`${label} (${edges.length})`,'details-section'));
-    for(const r of edges){const button=el('button',`${graph.byId.get(r[target])?.name} · ${r.kind||'dependency'} × ${r.weight}${routed.has(r.a+'\0'+r.b)?'':' · no street'}`,'member-row');button.title=(skipped.get(r.a+'\0'+r.b)||'')+' '+JSON.stringify(r.evidence||[]);if(r.historical)button.textContent+=' · historical edge';button.onclick=()=>onSelect(graph.byId.get(r[target]));deps.append(button);
+    deps.append(el('p',`${t(label)} (${edges.length})`,'details-section'));
+    for(const r of edges){const button=el('button',`${graph.byId.get(r[target])?.name} · ${t(r.kind||'dependency')} × ${r.weight}`,'member-row');button.title=t('Select this building and inspect its details.');if(r.historical)button.textContent+=' · '+t('historical edge');button.onclick=()=>onSelect(graph.byId.get(r[target]));deps.append(button);
       for(const e of r.evidence||[])deps.append(el('p',e.file?`${e.file}${e.line?':'+e.line:''} · ${e.symbol||e.ref||''}${e.alias?' as '+e.alias:''}${e.description?' · '+e.description:''}`:e.description,'muted-note'));}
   }
   host.append(deps);
@@ -59,20 +59,29 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
 
 export function initInvestigations(model,city,onSelect) {
   const host=document.getElementById('investigations');if(!host)return;
+  const previous=[...host.querySelectorAll('select')].map(s=>s.value);
   host.replaceChildren();const select=el('select'),sort=el('select'),note=el('p','','muted-note'),results=el('div',null,'investigation-results');
-  select.setAttribute('aria-label','Investigation preset');sort.setAttribute('aria-label','Sort investigation results');
-  select.append(new Option('Choose an investigation',''));for(const [key,p] of Object.entries(PRESETS))select.append(new Option(p.label,key));
-  for(const [key,label] of [['loc','Lines'],['fanOut','Fan-out'],['complexity','Complexity'],['churn','Churn'],['coverage','Coverage']])sort.append(new Option(label,key));
-  const draw=()=>{const p=PRESETS[select.value];note.textContent=p?.explain||'Evidence-based candidates for review. Generated code is excluded.';results.replaceChildren();city.highlightSubset(null);if(!p)return;
-    const rows=rankCandidates(model,select.value,sort.value,city.graph);city.highlightSubset(rows.map(b=>b.id));results.append(el('p',`${rows.length} candidates`,'muted-note'));
-    for(const b of rows.slice(0,300)){const button=el('button',`${b.name} · LOC ${b.loc} · out ${b.fanOut} · complexity ${b.complexity??'?'} · churn ${b.churn??'?'} · coverage ${b.coverage==null?'unknown':Math.round(b.coverage*100)+'%'}`,'member-row');button.onclick=()=>onSelect(b);results.append(button);}
-    if(rows.length>300)results.append(el('p','Showing the first 300; use sorting or a query to narrow results.','muted-note'));
+  select.setAttribute('aria-label',t('Investigation preset'));sort.setAttribute('aria-label',t('Sort investigation results'));
+  select.append(new Option(t('Choose an investigation'),''));for(const [key,p] of Object.entries(PRESETS)){const option=new Option(t(p.label),key);option.title=t(p.explain);select.append(option);}
+  for(const [key,label] of [['loc','Lines'],['fanOut','Fan-out'],['complexity','Complexity'],['churn','Churn']]){const option=new Option(t(label),key);option.title=t('Sort '+key);sort.append(option);}
+  const draw=()=>{const p=PRESETS[select.value];note.textContent=t(p?.explain||'Evidence-based candidates for review. Generated code is excluded.');select.title=note.textContent;sort.title=t('Sort '+sort.value);results.replaceChildren();city.highlightSubset(null);if(!p)return;
+    const rows=rankCandidates(model,select.value,sort.value,city.graph);city.highlightSubset(rows.map(b=>b.id));results.append(el('p',t('{n} candidates',{n:rows.length}),'muted-note'));
+    for(const b of rows.slice(0,300)){const button=el('button',`${b.name} · LOC ${b.loc} · ${t('Fan-out')} ${b.fanOut} · ${t('Complexity')} ${b.complexity??'?'} · ${t('Churn')} ${b.churn??'?'}`,'member-row');button.title=t('Select this building and inspect its details.');button.onclick=()=>onSelect(b);results.append(button);}
+    if(rows.length>300)results.append(el('p',t('Showing the first 300 candidates. Change sorting to explore other results.'),'muted-note'));
   };
   select.onchange=()=>{sort.value=PRESETS[select.value]?.sort||'loc';draw();};sort.onchange=draw;
-  const upload=el('input');upload.type='file';upload.accept='.json,application/json';upload.setAttribute('aria-label','Import file coverage JSON');
-  const uploadLabel=el('label','Import coverage JSON','muted-note');uploadLabel.append(upload);
-  upload.onchange=async()=>{const file=upload.files[0];if(!file)return;try{if(file.size>8_000_000)throw Error('Coverage report exceeds 8 MB.');const n=importCoverage(model,JSON.parse(await file.text()),file.name);draw();note.textContent=`Coverage imported for ${n} buildings. `+note.textContent;document.getElementById('opt-coverage').style.display='';city.setMapping({color:city.mapping.color});}catch(e){note.textContent=e.message;}};
-  host.append(select,sort,note,uploadLabel,results);draw();
+  host.append(select,sort,note,results);if(previous[0])select.value=previous[0];if(previous[1])sort.value=previous[1];draw();
+}
+
+export function renderSharedConnections(city,onSelect) {
+  const host=document.getElementById('shared-connections');if(!host)return;
+  host.replaceChildren();
+  const heading=el('summary',t('Shared connections'));host.append(heading);
+  host.append(el('p',t('Shared routes combine dependencies. Width and pedestrian density indicate total weight. Arrows show direction; pedestrians represent code links, not users.'),'muted-note'));
+  for(const path of city.street?.paths||[])if(path.shared){
+    const button=el('button',`${path.from} → ${path.to} · ${t('{n} connections · weight {weight}',{n:path.edges.length,weight:path.weight})}`,'member-row');
+    button.title=t('Inspect the connections represented by this route.');button.onclick=()=>onSelect(path);host.append(button);
+  }
 }
 
 export function drawMinimap(city,onSelect) {

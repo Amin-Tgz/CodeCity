@@ -6,7 +6,7 @@ export async function runImprovementChecks() {
   const actual=window.__codecity;
   await check('2. Member source highlights its range and metrics open their evidence',async()=>{
     const b=actual.model.buildings.find(b=>b.members?.some(m=>m.kind==='method'));assert(b,'fixture has no method');
-    document.getElementById('search').value=b.name;document.getElementById('search-form').dispatchEvent(new Event('submit',{cancelable:true}));
+    document.getElementById('list-btn').click();const f=document.getElementById('list-filter');f.value=b.name;f.dispatchEvent(new Event('input'));[...document.querySelectorAll('.list-row')].find(row=>row.dataset.id===b.id).click();document.getElementById('list-close').click();
     const i=b.members.findIndex(m=>m.kind==='method');document.querySelector(`.member-list [data-mi="${i}"]`).click();
     for(let n=0;n<30&&!document.querySelector('.selected-line');n++)await new Promise(r=>setTimeout(r,100));
     assert(Number(document.querySelector('.selected-line')?.dataset.line)===b.members[i].line,'member highlight starts at wrong line');
@@ -27,7 +27,7 @@ export async function runImprovementChecks() {
       await city.ready;const buildMs=performance.now()-start;
       const canvas=document.createElement('canvas');renderer=new THREE.WebGLRenderer({canvas});renderer.setSize(128,128);scene.add(new THREE.AmbientLight(0xffffff,2));renderer.render(scene,camera);
       assert(n<500?!city.instances:city.instances?.count===n,'instancing threshold/count incorrect');
-      assert(city.street.worker===null&&city.street._built,'worker did not finish');assert(city.street.paths.length+city.street.unroutedEdges.length===model.roads.length,'edges disappeared');
+      assert(city.street.worker===null&&city.street._built,'worker did not finish');assert(city.street.paths.reduce((n,p)=>n+(p.shared?p.edges.length:1),0)+city.street.unroutedEdges.length===model.roads.length,'edges disappeared');
       assert(n<500||renderer.info.render.calls<10,'buildings still render one mesh per draw call');
       for(let i=0;i<20;i++) {
         const e=city.byBuilding.get('b'+Math.floor(i*n/20)),target=e.center.clone().add(city.root.position),ray=new THREE.Raycaster(new THREE.Vector3(target.x,1000,target.z),new THREE.Vector3(0,-1,0));
@@ -51,7 +51,7 @@ export async function runStructuralHistoryChecks() {
   for(let i=0;i<80&&!c.model.meta.commit;i++)await new Promise(r=>setTimeout(r,100));await c.ready;
   assert(c.model.buildings.some(b=>b.name==='Deleted'),'deleted class absent');assert(c.model.roads.some(r=>r.kind==='call'),'old calls absent');
   const positions=new Map([...c.byBuilding].map(([id,e])=>[id,[e.center.x,e.center.z]]));
-  document.getElementById('search').value='Deleted';document.getElementById('search-form').dispatchEvent(new Event('submit',{cancelable:true}));document.querySelector('.source-section > button').click();
+  document.getElementById('list-btn').click();[...document.querySelectorAll('.list-row')].find(row=>row.textContent.includes('Deleted')).click();document.getElementById('list-close').click();document.querySelector('.source-section > button').click();
   assert(document.querySelector('.source-preview').textContent.includes('gone()'),'old source absent');assert(document.querySelector('.source-section > a').hidden,'historical preview linked to current editor file');
   document.getElementById('history-compare').click();await c.ready;
   assert([...positions].every(([id,p])=>c.byBuilding.get(id).center.x===p[0]&&c.byBuilding.get(id).center.z===p[1]),'comparison moved buildings');

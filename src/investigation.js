@@ -18,7 +18,6 @@ export function graphIndex(model) {
   return {incoming,outgoing,byId,components};
 }
 export const PRESETS={
-  'large-untested':{label:'Large and untested',explain:'LOC ≥ 200 and known coverage < 50%. Unknown coverage is excluded.',sort:'loc',match:b=>b.loc>=200&&b.coverage!=null&&b.coverage<.5},
   'fan-out':{label:'High fan-out',explain:'At least 5 distinct outgoing dependency targets. Import/call duplicates count once.',sort:'fanOut',match:b=>b.fanOut>=5},
   complexity:{label:'Complex behavior',explain:'Known syntactic complexity ≥ 15: 1 per method plus branch/loop decisions. Estimates and unknowns are labelled.',sort:'complexity',match:b=>b.complexity!=null&&b.complexity>=15},
   churn:{label:'Frequent changes',explain:'At least 3 commits touching the file in the available timeline. File evidence is shared by its classes.',sort:'churn',match:b=>b.churn>=3},
@@ -32,23 +31,4 @@ export function rankCandidates(model,preset,sort=PRESETS[preset]?.sort||'loc',gr
 export function editorLink(template,path,line,end=line) {
   if(!/^(vscode|vscode-insiders|idea|https?):\/\//.test(template))throw Error('Use a vscode://, idea://, or http(s):// editor link.');
   return template.replaceAll('{path}',path.split(/[\\/]/).map(encodeURIComponent).join('/')).replaceAll('{line}',String(line)).replaceAll('{end}',String(end));
-}
-
-export function importCoverage(model,data,source='coverage JSON') {
-  if(!data||typeof data!=='object'||Array.isArray(data))throw Error('Coverage must map exact file paths to fractions, percentages, or {pct: number}.');
-  const root=(model.meta.root||'').replaceAll('\\','/').replace(/\/$/,'');
-  const normalized=new Map();
-  for(const [key,raw] of Object.entries(data)) {
-    let file=key.replaceAll('\\','/').replace(/^\.\//,''),value=raw?.lines?.pct!=null?raw.lines:raw;
-    if(root&&file.startsWith(root+'/'))file=file.slice(root.length+1);
-    if(file.startsWith('/')||/^[A-Za-z]:/.test(file))continue;
-    const explicit=value&&typeof value==='object'&&typeof value.pct==='number';
-    value=explicit?value.pct:value;
-    if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>100)continue;
-    normalized.set(file,explicit||value>1?value/100:value);
-  }
-  let matched=0;
-  for(const b of model.buildings)if(normalized.has(b.file)) {b.coverage=normalized.get(b.file);b.metric_evidence||={};b.metric_evidence.coverage={value:b.coverage,rule:`File-level coverage from ${source}; shared by declarations in this file`};matched++;}
-  if(!matched)throw Error('No exact source paths matched this coverage report.');
-  model.meta.coverageSource=source;return matched;
 }

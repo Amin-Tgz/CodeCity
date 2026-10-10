@@ -31,7 +31,7 @@ function diagram(outlier) {
 export function renderQualityGuide(host) {
   const section=document.createElement('section');section.className='quality-guide';
   const heading=document.createElement('h3');heading.textContent='Recognizing code quality visually';section.append(heading);
-  const intro=document.createElement('p');intro.textContent='Use the default mapping for these examples: height = methods, footprint = attributes, colour = lines of code. Language, coverage, and comparison colours have different meanings.';section.append(intro);
+  const intro=document.createElement('p');intro.textContent='Use the default mapping for these examples: height = methods, footprint = attributes, colour = lines of code. Language and comparison colours have different meanings.';section.append(intro);
   const examples=document.createElement('div');examples.className='quality-examples';
   for(const [title,text,outlier] of [
     ['More balanced','Related buildings have comparable sizes, and most streets stay inside their district.',false],
@@ -47,7 +47,6 @@ export function renderQualityGuide(host) {
     ['Compact, coherent districts','A district dominates the city','Check whether the folder mixes unrelated features; consider clearer module boundaries.'],
     ['Mostly local streets','Many streets cross district boundaries','Inspect coupling and dependency direction. A shared core can be legitimate; look for cycles and costly changes.'],
     ['A proportionate footprint','A very wide base with few methods','Inspect stored state and field ownership. Data models and DTOs can correctly look like this.'],
-    ['Coverage colours are mostly green','Red coverage hotspots or grey unknowns','In coverage mode, inspect tests around risky code. Grey means missing coverage data, not zero coverage.'],
   ];
   const table=document.createElement('table');table.className='help-table quality-table';
   const head=document.createElement('thead');const tr=document.createElement('tr');

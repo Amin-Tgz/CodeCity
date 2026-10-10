@@ -11,7 +11,7 @@ export async function runModeChecks(page, projectPath) {
   assert(await page.locator('html').getAttribute('data-mode')==='simple','fresh visit defaults to Simple');
   assert(!await visible('#controls')&&!await visible('#legend'),'empty Simple city hides inactive panels');
   await page.locator('[data-mode-choice="advanced"]').click();
-  assert(await visible('#sel-height')&&await visible('#query'),'Advanced reveals mapping and queries');
+  assert(await visible('#sel-height')&&await visible('#investigations'),'Advanced reveals mapping and investigations');
   await page.reload();
   await page.waitForFunction(()=>window.__codecity&&document.getElementById('loading').style.display==='none');
   assert(await page.locator('[data-mode-choice="advanced"]').getAttribute('aria-pressed')==='true','Advanced preference survives reload');
@@ -32,10 +32,9 @@ export async function runModeChecks(page, projectPath) {
   await page.locator('.metric-explain[data-metric="loc"]').click();
   assert(await page.locator('html').getAttribute('data-mode')==='advanced'&&await visible('.metric-evidence p:first-of-type'),'metric click reveals Advanced evidence');
   await page.locator('#details-close').click();
-  await page.locator('#query').fill('loc>0');
-  await page.locator('#query-form').evaluate(form=>form.requestSubmit());
+  await page.locator('#investigations select').first().selectOption('fan-out');
   await page.locator('[data-mode-choice="simple"]').click();
-  assert(await page.locator('#query').inputValue()===''&&!await visible('#query'),'Simple clears hidden query state');
+  assert(await page.locator('#investigations select').first().inputValue()===''&&!await visible('#investigations'),'Simple clears hidden investigation state');
   await page.locator('#ui-language').selectOption('fa');
   assert(await page.locator('html').getAttribute('dir')==='rtl'&&await page.locator('[data-mode-choice="simple"]').textContent()==='ساده','mode labels and layout support Persian');
   await page.setViewportSize({width:390,height:844});

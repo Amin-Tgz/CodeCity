@@ -4,12 +4,11 @@ import { treemap, inset, packageLayout } from './layout.js';
 import {
   METRICS, locColor, heatColor, districtHue, norm, heightFor, hash01,
   boxplot, categoryFor, categoryHeights, categoryFootprints,
-  languageColor, coverageColor,
+  languageColor,
 } from './metrics.js';
 
 function colorFor(b, cKey, cMin, cMax) {
   if (cKey === 'language') return languageColor(b.language);
-  if (cKey === 'coverage') return b.coverage == null ? new THREE.Color('#64748b') : coverageColor(norm(Number(b.coverage), 0, 1));
   const t = norm(METRICS[cKey].get(b), cMin, cMax);
   return cKey === 'loc' ? locColor(t) : heatColor(t);
 }
@@ -53,7 +52,7 @@ export class City {
     this.streetMode = 'all';
     this.focusId = null;
     this.camera = null;
-    this.querySet = null;
+    this.highlightSet = null;
     this.filterId = null;
     this.historyFrame = null;
     this.diffBase = null;
@@ -333,6 +332,7 @@ export class City {
       center: new THREE.Vector3(rect.x + rect.w / 2, 0.62 + altitude + h / 2, rect.y + rect.h / 2),
       ground: new THREE.Vector3(rect.x + rect.w / 2, altitude + STREET_Y, rect.y + rect.h / 2),
       half: { w: w / 2, d: d / 2 },
+      roofY: altitude + .62 + h,
     });
     this.buildingMeshes.set(b.id, group);
   }
@@ -391,8 +391,8 @@ export class City {
       if(e.building.comparison_status==='changed'&&delta===0){color=new THREE.Color('#f59e0b');intensity=.8;}
       else if (delta === 0) opacity = 0.35;
     }
-    if (this.querySet) {
-      if (this.querySet.has(id)) { color = HOVER; intensity = 0.55; }
+    if (this.highlightSet) {
+      if (this.highlightSet.has(id)) { color = HOVER; intensity = 0.55; }
       else opacity = 0.12;
     }
     if (id === this.hoveredId) { color = HOVER; intensity = 0.45; }
@@ -428,7 +428,7 @@ export class City {
   // Tagging (paper's colour + transparency): dim everything except `ids`, which
   // are tinted. Pass null to clear.
   highlightSubset(ids) {
-    this.querySet = ids ? new Set(ids) : null;
+    this.highlightSet = ids ? new Set(ids) : null;
     this._refreshAppearance();
   }
 
@@ -498,16 +498,4 @@ export class City {
     return e ? e.center.clone() : null;
   }
 
-  findBuilding(query) {
-    const q = query.trim().toLowerCase();
-    if (!q) return null;
-    let best = null;
-    for (const b of this.model.buildings) {
-      const name = b.name.toLowerCase();
-      const file = b.file.toLowerCase();
-      if (name === q || file === q) return b;
-      if (!best && (name.includes(q) || file.includes(q))) best = b;
-    }
-    return best;
-  }
 }

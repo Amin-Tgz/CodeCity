@@ -12,8 +12,12 @@ import { roadTexture, streetTexture } from './textures.js';
 // ---------------------------------------------------------------------------
 
 import {StreetRouter,STREET_Y,TIERS} from './routing.js';
+import {sharedConnections,directConnections} from './connections.js';
 export {STREET_Y} from './routing.js';
 const TILE=6;
+function disposeObject(object) {
+  object.traverse(child=>{child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose();child.dispose?.();});
+}
 
 export class StreetNetwork extends StreetRouter {
   constructor(model, byBuilding, side, hash01,terraces=[]) {
@@ -55,21 +59,15 @@ export class StreetNetwork extends StreetRouter {
       this._workerTimer=setTimeout(()=>finish('Street routing timed out; dependencies remain available in the inspector.'),45000);
       worker.onmessage=e=>{clearTimeout(this._workerTimer);worker.terminate();this.worker=null;if(e.data.error){finish(e.data.error);return;}if(!this._disposed)this._applyPlan(e.data);resolve();};
       worker.onerror=e=>finish(e.message||'Street routing failed.');
-      worker.postMessage({roads:this.model.roads,side:this.side,terraces:this.terraces,buildings:[...this.by].map(([id,e])=>({id,ground:{x:e.ground.x,y:e.ground.y,z:e.ground.z},half:e.half,district:e.district,packageRect:e.packageRect}))});
+      worker.postMessage({roads:this.model.roads,side:this.side,terraces:this.terraces,buildings:[...this.by].map(([id,e])=>({id,ground:{x:e.ground.x,y:e.ground.y,z:e.ground.z},half:e.half,roofY:e.roofY,district:e.district,packageRect:e.packageRect}))});
     });
   }
 
   _applyPlan({paths,unroutedEdges}) {
+    // Worker failures also retain a visible shared representation.
+    if(unroutedEdges.length){paths=[...paths,...sharedConnections(unroutedEdges,this.by)];unroutedEdges=unroutedEdges.filter(e=>!this.by.has(e.a)||!this.by.has(e.b));}
     for(const p of paths)p.pts=p.pts.map(v=>new THREE.Vector3(v.x,v.y,v.z));
     this.paths=paths;this.unroutedEdges=unroutedEdges;this.unrouted=unroutedEdges.length;
-    // building id -> incident path indices (relationship-on-demand)
-    this._index = new Map();
-    paths.forEach((p, i) => {
-      for (const id of [p.a, p.b]) {
-        if (!this._index.has(id)) this._index.set(id, []);
-        this._index.get(id).push(i);
-      }
-    });
     this._meshFromPaths(paths, this.group, this._mats);
     this._buildWalkers(paths);
     this._refreshVisibility();
@@ -84,6 +82,25 @@ export class StreetNetwork extends StreetRouter {
   _meshFromPaths(paths, group, matsArr) {
     const buckets = new Map();
     for (const p of paths) {
+      if(p.shared||p.tier==='direct'){
+        const geometry=new THREE.BufferGeometry(),positions=[],indices=[];
+        for(let i=1;i<p.pts.length;i++){
+          const a=p.pts[i-1],b=p.pts[i],direction=new THREE.Vector3().subVectors(b,a).normalize();
+          const normal=new THREE.Vector3(-direction.z,0,direction.x);
+          if(normal.lengthSq()<1e-8)normal.set(1,0,0);else normal.normalize();
+          normal.multiplyScalar(p.width/2);const base=positions.length/3;
+          for(const [point,sign] of [[a,1],[b,1],[b,-1],[a,-1]])positions.push(point.x+normal.x*sign,point.y,point.z+normal.z*sign);
+          indices.push(base,base+1,base+2,base,base+2,base+3);
+        }
+        geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+        const material=new THREE.MeshStandardMaterial({color:p.shared?'#ddb65c':'#38bdf8',side:THREE.DoubleSide,roughness:.8});
+        const mesh=new THREE.Mesh(geometry,material);mesh.userData.connection=p;group.add(mesh);matsArr.push(material);
+        // A static arrow preserves direction when animations are paused.
+        let segment=1;for(let i=2;i<p.pts.length;i++)if(p.pts[i].distanceTo(p.pts[i-1])>p.pts[segment].distanceTo(p.pts[segment-1]))segment=i;
+        const a=p.pts[segment-1],b=p.pts[segment],dir=new THREE.Vector3().subVectors(b,a).normalize();
+        const arrow=new THREE.ArrowHelper(dir,new THREE.Vector3().lerpVectors(a,b,.55).add(new THREE.Vector3(0,.1,0)),Math.min(3,a.distanceTo(b)*.3),p.shared?0xfff0b3:0x67e8f9,1,.7);
+        group.add(arrow);continue;
+      }
       if (!buckets.has(p.tier)) buckets.set(p.tier, { pos: [], uv: [], idx: [], count: 0 });
       this._emitQuads(buckets.get(p.tier), p.pts, p.width);
     }
@@ -154,16 +171,17 @@ export class StreetNetwork extends StreetRouter {
       let total = 0;
       for (let i = 1; i < pts.length; i++) { total += pts[i].distanceTo(pts[i - 1]); cum.push(total); }
       if (total < 1) continue;
-      const count = Math.min(6, Math.max(1, Math.round(p.weight)));
+      const count = Math.min(p.shared?48:6, Math.max(1, Math.round(p.shared?Math.log2(1+p.weight)*4:p.weight)));
       const spread = Math.max(0.2, p.width - 0.2);
       for (let k = 0; k < count; k++) {
         const seed = p.a + p.b + k;
         walkers.push({
-          a: p.a, b: p.b,
+          a: p.a, b: p.b, shared:!!p.shared,
           pts, cum, total, baseY: pts[0].y,
           d: this.hash01(seed) * total,
           speed: 1.8 + 2.2 * this.hash01(seed + 's'),
-          dir: (k % 2) ? -1 : 1,
+          dir: p.shared||p.tier==='direct'?1:(k % 2) ? -1 : 1,
+          directed:p.shared||p.tier==='direct',
           off: (this.hash01(seed + 'o') - 0.5) * spread,
         });
       }
@@ -198,16 +216,16 @@ export class StreetNetwork extends StreetRouter {
     this.visibleIds = ids;
     for (const group of [this.group, this.walkerGroup]) {
       for (const child of group.children) {
-        child.geometry?.dispose();
-        child.material?.dispose();
-        child.dispose?.();
+        disposeObject(child);
       }
       group.clear();
     }
     this._mats = [];
     this.walkers = [];
     this.walkerMesh = null;
-    const paths = this.paths.filter((p) => ids.has(p.a) && ids.has(p.b));
+    const paths = this.paths.filter(p=>!p.shared&&ids.has(p.a)&&ids.has(p.b));
+    paths.push(...sharedConnections(this.paths.filter(p=>p.shared).flatMap(p=>p.edges).filter(e=>ids.has(e.a)&&ids.has(e.b)),this.by));
+    for(const p of paths)p.pts=p.pts.map(v=>new THREE.Vector3(v.x,v.y,v.z));
     this._meshFromPaths(paths, this.group, this._mats);
     this._buildWalkers(paths);
     this.setFocus(this.focusId, true);
@@ -224,17 +242,15 @@ export class StreetNetwork extends StreetRouter {
     if (!force && id === this.focusId && this._built) { this._refreshVisibility(); return; }
     this.focusId = id;
     for (const c of [...this.focusGroup.children]) {
-      if (c.geometry) c.geometry.dispose();
-      if (c.material) c.material.dispose();
-      c.dispose?.();
+      disposeObject(c);
     }
     this.focusGroup.clear();
     this._focusMats = [];
     this.focusWalkers = [];
     this.focusWalkerMesh = null;
-    if (this.focusId && this._index && this._index.has(this.focusId)) {
-      const subset = this._index.get(this.focusId).map((i) => this.paths[i])
-        .filter((p) => !this.visibleIds || (this.visibleIds.has(p.a) && this.visibleIds.has(p.b)));
+    if (this.focusId) {
+      const subset=directConnections(this.model.roads.filter(e=>e.a===id||e.b===id),this.by);
+      for(const p of subset)p.pts=p.pts.map(v=>new THREE.Vector3(v.x,v.y,v.z));
       this._meshFromPaths(subset, this.focusGroup, this._focusMats);
       this.focusGroup.position.y = 0.035;
       for (const mat of this._focusMats) {
@@ -278,6 +294,7 @@ export class StreetNetwork extends StreetRouter {
     return {
       x: p0.x + dx * f + nx * w.off,
       z: p0.z + dz * f + nz * w.off,
+      y:p0.y+(p1.y-p0.y)*f,
     };
   }
 
@@ -287,12 +304,12 @@ export class StreetNetwork extends StreetRouter {
     for (let i = 0; i < list.length; i++) {
       const w = list[i];
       w.d += dt * w.speed * w.dir;
-      if (w.d >= w.total) { w.d = w.total; w.dir = -1; }
+      if (w.d >= w.total) { w.d = w.directed?0:w.total; if(!w.directed)w.dir = -1; }
       else if (w.d <= 0) { w.d = 0; w.dir = 1; }
       const p = this._pointAt(w);
-      m.makeTranslation(p.x, (w.baseY || STREET_Y) + 0.3, p.z);
+      m.makeTranslation(p.x, p.y + 0.3, p.z);
       // Focus pedestrians replace the originals on incident paths, avoiding duplicates.
-      if (mesh === this.walkerMesh && this.focusId && (w.a === this.focusId || w.b === this.focusId)) m.makeScale(0, 0, 0);
+      if (mesh === this.walkerMesh && !w.shared && this.focusId && (w.a === this.focusId || w.b === this.focusId)) m.makeScale(0, 0, 0);
       mesh.setMatrixAt(i, m);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -310,9 +327,7 @@ export class StreetNetwork extends StreetRouter {
   dispose() {
     this._disposed=true;clearTimeout(this._workerTimer);this.worker?.terminate();this.worker=null;this._resolveWorker?.();
     for (const child of [...this.group.children, ...this.walkerGroup.children, ...this.focusGroup.children]) {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) child.material.dispose();
-      child.dispose?.();
+      disposeObject(child);
     }
     this.group.clear();
     this.walkerGroup.clear();

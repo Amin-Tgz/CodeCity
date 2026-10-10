@@ -2,6 +2,7 @@
 import qualityMessages from './quality-strings.js';
 import helpMessages from './help-strings.js';
 import controlMessages from './control-strings.js';
+import inspectionMessages from './inspection-strings.js';
 import {applyTooltips} from './tooltips.js';
 export const locales=['en','es','fr','de','zh','ja','ar','fa'];
 let locale='en';
@@ -9,6 +10,7 @@ let locale='en';
 const messages={
   ...helpMessages,
   ...controlMessages,
+  ...inspectionMessages,
   'pause motion':['pausar movimiento','mettre en pause','Bewegung pausieren','暂停动画','アニメーション停止','إيقاف الحركة','توقف حرکت'],
   'Simple':['Simple','Simple','Einfach','简洁','シンプル','بسيط','ساده'],
   'Advanced':['Avanzado','Avancé','Erweitert','高级','詳細','متقدم','پیشرفته'],

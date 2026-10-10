@@ -5,14 +5,13 @@ import * as UI from './ui.js';
 import { skyTexture } from './textures.js';
 import { Landscape } from './landscape.js';
 import { Construction } from './construction.js';
-import { parseQuery, loadQueries, saveQuery } from './query.js';
 import { validateModel } from './model.js';
 import { initTimeline } from './history.js';
 import { initA11y } from './accessible.js';
 import { initI18n, t, translate } from './i18n.js';
 import { initProjects } from './projects.js';
 import { initPanels, initAutoHide, setSelectionPanelState } from './panels.js';
-import {initInvestigations,drawMinimap} from './inspection-ui.js';
+import {initInvestigations,drawMinimap,renderSharedConnections} from './inspection-ui.js';
 import {graphIndex} from './investigation.js';
 import {initMode} from './mode.js';
 import {initProfile} from './profile.js';
@@ -98,6 +97,7 @@ let groundSide = 160;
 let cleanupA11y = () => {};
 let cleanupTimeline = () => {};
 let activeBuilding = null;
+let activeConnection = null;
 const pointer = new THREE.Vector2();
 let downPos = null;
 
@@ -149,46 +149,14 @@ function wireUI(model) {
 
   document.getElementById('chk-grid').onchange = (e) => { grid.visible = e.target.checked; };
 
-  // query / tagging engine
-  const qInput = document.getElementById('query');
-  const qCount = document.getElementById('query-count');
-  const qSaved = document.getElementById('query-saved');
-  const runQuery = (text) => {
-    const parsed = parseQuery(text);
-    if (parsed.empty) { city.highlightSubset(null); qCount.textContent = ''; return; }
-    const ids = model.buildings.filter(parsed.test).map((b) => b.id);
-    city.highlightSubset(ids);
-    qCount.textContent = t('{n} of {total} tagged · {query}', {n: ids.length, total: model.buildings.length, query: parsed.describe});
-  };
   const simpleMode=()=>{
     if(document.documentElement.dataset.mode!=='simple')return;
-    qInput.value='';qSaved.value='';runQuery('');
-    document.getElementById('search').value='';document.getElementById('filter').value='';city.applyFilter(null);
+    document.getElementById('filter').value='';city.applyFilter(null);
     const preset=document.querySelector('#investigations select');
     if(preset?.value){preset.value='';preset.dispatchEvent(new Event('change'));}
   };
-  // wireUI runs again on project/history changes; keep one handler for the current city.
   if(wireUI.modeListener)window.removeEventListener('modechange',wireUI.modeListener);
   wireUI.modeListener=simpleMode;window.addEventListener('modechange',simpleMode);
-  const refreshSaved = () => {
-    const all = loadQueries();
-    qSaved.replaceChildren(new Option(t('saved…'), ''), ...Object.keys(all).map((k) => new Option(k, k)));
-  };
-  document.getElementById('query-form').onsubmit = (e) => { e.preventDefault(); runQuery(qInput.value); };
-  document.getElementById('query-clear').onclick = () => {
-    qInput.value = ''; city.highlightSubset(null); qCount.textContent = '';
-  };
-  document.getElementById('query-save').onclick = () => {
-    const name = window.prompt(t('save query as')); if (!name) return;
-    if (!saveQuery(name, qInput.value)) { qCount.textContent = t('Queries could not be saved: browser storage is unavailable.'); return; }
-    refreshSaved(); qSaved.value = name;
-  };
-  qSaved.onchange = () => {
-    const all = loadQueries();
-    const t = all[qSaved.value];
-    if (t != null) { qInput.value = t; runQuery(t); }
-  };
-  refreshSaved();
   simpleMode();
 
   document.getElementById('auto-rotate').onclick = (e) => {
@@ -196,18 +164,13 @@ function wireUI(model) {
     e.currentTarget.classList.toggle('active', controls.autoRotate);
   };
 
-  const form = document.getElementById('search-form');
-  form.onsubmit = (e) => {
-    e.preventDefault();
-    const b = city.findBuilding(document.getElementById('search').value);
-    if (b) focusBuilding(b);
-  };
 
   document.getElementById('reset-view').onclick = () => resetView();
   UI.renderLegend(selC.value, model, city.mapping);
   applyMapping();
   city.graph=graphIndex(model);
   initInvestigations(model,city,focusBuilding);drawMinimap(city,focusBuilding);
+  renderSharedConnections(city,showConnection);
 }
 
 // --- help tab -------------------------------------------------------------
@@ -246,6 +209,8 @@ function initHelp() {
 }
 
 function showDetails(b) {
+  if(activeConnection)city?.highlightSubset(null);
+  activeConnection=null;
   activeBuilding = b;
   setSelectionPanelState(!!b);
   UI.renderDetails(b, {
@@ -255,11 +220,17 @@ function showDetails(b) {
   });
   updateHudOffset();
 }
-window.addEventListener('streetsready',event=>{renderDirty=true;if(city?.street===event.detail){UI.renderRoadStats(city);if(activeBuilding)showDetails(activeBuilding);}});
-window.addEventListener('routingerror',e=>{document.getElementById('project-status').textContent='Street routing: '+e.detail;});
+function showConnection(path) {
+  activeBuilding=null;activeConnection=path;city.select(null);
+  city.highlightSubset(path.edges.flatMap(e=>[e.a,e.b]));setSelectionPanelState(true);
+  UI.renderConnectionDetails(path,{city,onSelect:focusBuilding,onClose:()=>{city.highlightSubset(null);showDetails(null);}});updateHudOffset();
+}
+window.addEventListener('streetsready',event=>{renderDirty=true;if(city?.street===event.detail){UI.renderRoadStats(city);renderSharedConnections(city,showConnection);if(activeBuilding)showDetails(activeBuilding);}});
+window.addEventListener('routingerror',()=>{document.getElementById('project-status').textContent=t('Ground routing is unavailable. All identified connections are shown as shared routes.');});
 window.addEventListener('exploreopen',()=>{showDetails(null);city?.select(null);});
 
 function focusBuilding(b) {
+  if(activeConnection)city.highlightSubset(null);
   if (!city.byBuilding.get(b.id)?.group.visible) {
     const timeline = document.getElementById('tl-range');
     if (timeline) { timeline.value = timeline.max; timeline.dispatchEvent(new Event('input')); }
@@ -302,6 +273,7 @@ canvas.addEventListener('pointerup', (e) => {
   pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
   const hit = city.hover(pointer, camera);
+  if(!hit&&city.street?.group.visible){const ray=new THREE.Raycaster();ray.setFromCamera(pointer,camera);const route=ray.intersectObjects(city.street.group.children,false).find(h=>h.object.userData.connection?.shared);if(route){showConnection(route.object.userData.connection);return;}}
   const b = city.select(hit);
   showDetails(b);
 });
@@ -327,8 +299,6 @@ async function loadModel(model) {
     if(playing){showDetails(null);city.select(null);resetView();}
   }}) || (() => {});
   cleanupA11y = initA11y(model, city, {onSelect: b => focusBuilding(b)}) || (() => {});
-  document.getElementById('query').value = '';
-  document.getElementById('query-count').textContent = '';
   document.getElementById('citylist').classList.remove('open');
   document.getElementById('empty-city').hidden = !!model.meta.root;
   document.body.classList.toggle('has-project',!!model.meta.root);
@@ -361,6 +331,8 @@ async function boot() {
     if (!city) return;
     UI.renderStats(city.model); UI.renderRoadStats(city);
     UI.renderLegend(city.mapping.color, city.model, city.mapping);
+    initInvestigations(city.model,city,focusBuilding);renderSharedConnections(city,showConnection);
+    if(activeConnection){showConnection(activeConnection);return;}
     showDetails(activeBuilding);
     updateHudOffset();
   });

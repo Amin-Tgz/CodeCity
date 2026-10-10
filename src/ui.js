@@ -1,4 +1,4 @@
-import { makeRampCanvas, locColor, heatColor, coverageColor, languageColor } from './metrics.js';
+import { makeRampCanvas, locColor, heatColor, languageColor } from './metrics.js';
 import {t} from './i18n.js';
 import {revealFile,canReveal} from './projects.js';
 import {attachInspector} from './inspection-ui.js';
@@ -25,14 +25,37 @@ export function renderStats(model) {
 export function renderRoadStats(city) {
   const el = $('roads-stat');
   if(!el||!city.street)return;
-  const skipped = city.street.unrouted;
-  el.textContent = t('{n} streets',{n:city.street.paths.length}) + (skipped ? t(' · {n} unrouted',{n:skipped}) : '');
-  el.title = `${city.model.roads.length} dependency links in the model. Links across terraces, without a clear route, or beyond the drawing budget remain selectable in the dependency inspector.`;
+  const count=city.street.paths.reduce((n,p)=>n+(p.shared?p.edges.length:1),0);
+  el.textContent=t('{shown}/{total} connections represented',{shown:count,total:city.model.roads.length});
+  el.title=t('Shared routes combine dependencies. Width and pedestrian density indicate total weight. Arrows show direction; pedestrians represent code links, not users.');
+}
+
+export function renderConnectionDetails(path,{city,onSelect,onClose}) {
+  const box=$('details');box.replaceChildren();box.classList.add('open');
+  const head=document.createElement('div');head.className='details-head';
+  const title=document.createElement('div');title.className='details-name';title.dir='ltr';title.textContent=`${path.from} → ${path.to}`;
+  const close=document.createElement('button');close.id='details-close';close.className='icon-btn';close.textContent='×';close.title=t('close');close.setAttribute('aria-label',t('close'));close.onclick=onClose;head.append(title,close);box.append(head);
+  const body=document.createElement('div');body.id='details-body';box.append(body);
+  const note=document.createElement('p');note.className='muted-note';note.textContent=t('{n} connections · weight {weight}',{n:path.edges.length,weight:path.weight});body.append(note);
+  let shown=0;
+  const more=document.createElement('button');more.className='mini-btn';
+  const append=()=>{
+    more.remove();
+    for(const edge of path.edges.slice(shown,shown+300)){
+      const row=document.createElement('div');row.className='connection-row';row.dir='ltr';
+      for(const [index,id] of [edge.a,edge.b].entries()){const button=document.createElement('button');button.className='member-row';button.textContent=city.byBuilding.get(id).building.name;button.title=t('Select this building and inspect its details.');button.onclick=()=>onSelect(city.byBuilding.get(id).building);row.append(button);if(index===0){const arrow=document.createElement('span');arrow.textContent='→';row.append(arrow);}}
+      const weight=document.createElement('span');weight.className='connection-weight';weight.textContent=`${t(edge.kind||'dependency')} × ${edge.weight}`;row.append(weight);body.append(row);
+    }
+    shown=Math.min(shown+300,path.edges.length);
+    if(shown<path.edges.length){more.textContent=t('Show more ({n} remaining)',{n:path.edges.length-shown});more.title=more.textContent;body.append(more);}
+  };
+  more.onclick=append;append();
+  registerAutoHidePanel(box);
 }
 
 export function renderLegend(colorKey, model, mapping) {
   if (mapping) {
-    const labels = { nom: 'methods (NOM)', noa: 'attributes (NOA)', loc: 'lines of code (LOC)', deps: 'dependencies', language: 'language', coverage: 'test coverage (grey = unknown)' };
+    const labels = { nom: 'methods (NOM)', noa: 'attributes (NOA)', loc: 'lines of code (LOC)', deps: 'dependencies', language: 'language' };
     document.querySelector('.legend-notes').innerHTML = ['height', 'footprint', 'colour'].map((key) =>
       `<div><b>${escapeHtml(t(key))}</b> = ${escapeHtml(t(labels[mapping[key === 'colour' ? 'color' : key]]))}</div>`).join('')
       + `<div><b>${escapeHtml(t('district'))}</b> = ${escapeHtml(t('folder / package'))}</div>`;
@@ -49,7 +72,7 @@ export function renderLegend(colorKey, model, mapping) {
     return;
   }
   host.style.height = '';
-  const ramp = colorKey === 'loc' ? locColor : colorKey === 'coverage' ? coverageColor : heatColor;
+  const ramp = colorKey === 'loc' ? locColor : heatColor;
   const cv = makeRampCanvas(ramp);
   host.innerHTML = '';
   cv.style.width = '100%';
@@ -57,7 +80,7 @@ export function renderLegend(colorKey, model, mapping) {
   host.appendChild(cv);
   const metricLabel = {
     loc: 'lines of code (LOC)', nom: 'methods (NOM)', noa: 'attributes (NOA)',
-    deps: 'dependencies', coverage: 'test coverage',
+    deps: 'dependencies',
   };
   $('ramp-lo').textContent = t('low');
   $('ramp-hi').textContent = t('high');

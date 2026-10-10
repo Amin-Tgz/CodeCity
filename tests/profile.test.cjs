@@ -18,7 +18,7 @@ test('metric profile persists across app restarts and ports; unauthorized and in
   }
   const first=await start();
   assert.deepEqual((await(await first.request('GET')).json()).profile,DEFAULT_PROFILE);
-  const desired={version:1,mapping:{height:'deps',footprint:'loc',color:'coverage',mode:'linear'}};
+  const desired={version:1,mapping:{height:'deps',footprint:'loc',color:'language',mode:'linear'}};
   assert.equal((await first.request('POST',desired,{'X-CodeCity-Token':'wrong'})).status,403);
   assert.equal((await first.request('POST',desired,{Origin:'https://example.org'})).status,403);
   assert.equal((await first.request('POST',desired)).status,200);

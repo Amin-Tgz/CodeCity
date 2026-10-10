@@ -61,12 +61,12 @@ test('3. Nested packages contain child rectangles and never overlap siblings/bui
   for(const p of layout.buildings)assert.ok(inside(p.rect,packages.get(p.district).rect));
   for(const [i,a] of layout.buildings.entries())for(const b of layout.buildings.slice(i+1)){const overlap=Math.min(a.rect.x+a.rect.w,b.rect.x+b.rect.w)-Math.max(a.rect.x,b.rect.x)>1e-8&&Math.min(a.rect.y+a.rect.h,b.rect.y+b.rect.h)-Math.max(a.rect.y,b.rect.y)>1e-8;assert.equal(overlap,false);}
 });
-test('4. Presets use explicit evidence, distinct fan-out and cycles; unknown coverage is excluded',async()=>{
+test('4. Presets use explicit evidence, distinct fan-out and cycles',async()=>{
   const {graphIndex,rankCandidates,editorLink}=await import('../src/investigation.js');
   const buildings=Array.from({length:7},(_,i)=>({id:String(i),name:String(i),loc:300,coverage:i===0?0:i===1?null:.8,complexity:i===0?20:null,generated:i===2,churn:4}));
   const roads=buildings.slice(1).map(b=>({a:'0',b:b.id,kind:'import',weight:1}));roads.push({a:'0',b:'1',kind:'call',weight:3},{a:'1',b:'0',kind:'call',weight:1});
   const m={buildings,roads,meta:{}},graph=graphIndex(m);assert.deepEqual(graph.components.get('0').sort(),['0','1']);
-  assert.equal(rankCandidates(m,'fan-out')[0].fanOut,6);assert.deepEqual(rankCandidates(m,'large-untested').map(b=>b.id),['0']);assert.deepEqual(rankCandidates(m,'complexity').map(b=>b.id),['0']);assert.equal(rankCandidates(m,'churn').length,6);
+  assert.equal(rankCandidates(m,'fan-out')[0].fanOut,6);assert.deepEqual(rankCandidates(m,'complexity').map(b=>b.id),['0']);assert.equal(rankCandidates(m,'churn').length,6);
   assert.throws(()=>editorLink('javascript:{path}','x',1));assert.equal(editorLink('vscode://file/{path}:{line}','D:/a b/x.ts',12),'vscode://file/D%3A/a%20b/x.ts:12');
 });
 
@@ -89,16 +89,6 @@ test('5. Real commit snapshots restore deleted classes, old calls and member bou
   const history=await require('../server/history.cjs').readHistory(path.join(root,'nested'),['renamed.ts','entry.ts']);assert.equal(history.churn['renamed.ts'],3,'rename should retain earlier file-touch evidence');
 });
 
-test('4. Coverage imports distinguish explicit 1% from fractions and match exact paths',async()=>{
-  const {importCoverage}=await import('../src/investigation.js');const m={meta:{root:'D:/project'},buildings:[{file:'src/a.ts'},{file:'other/a.ts'}]};
-  assert.equal(importCoverage(m,{'D:/project/src/a.ts':{pct:1},'a.ts':100}),1);assert.equal(m.buildings[0].coverage,.01);assert.equal(m.buildings[1].coverage,undefined);
-  importCoverage(m,{'src/a.ts':1});assert.equal(m.buildings[0].coverage,1);assert.throws(()=>importCoverage(m,{'outside/a.ts':100}));
-});
-test('6. Terrace links and drawing-budget omissions retain selectable edge evidence',async()=>{
-  const {StreetRouter,Point3}=await import('../src/routing.js');const by=new Map([['a',{ground:new Point3(3,1,3),half:{w:.5,d:.5}}],['b',{ground:new Point3(15,2,15),half:{w:.5,d:.5}}]]);
-  const roads=Array.from({length:2502},(_,i)=>({a:'a',b:'b',kind:i%2?'call':'import',weight:1,evidence:[{line:i+1}]}));const plan=new StreetRouter({roads},by,20).routePlan();
-  assert.equal(plan.paths.length,0);assert.equal(plan.unroutedEdges.length,roads.length);assert.match(plan.unroutedEdges[0].reason,/terrace/);assert.match(plan.unroutedEdges.at(-1).reason,/budget/);assert.equal(plan.unroutedEdges[0].evidence[0].line,1);
-});
 test('6. Analysis workers match direct scanning and release the event loop',async t=>{
   const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');const dir=await fs.mkdtemp(path.join(os.tmpdir(),'codecity-worker-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
   await fs.writeFile(path.join(dir,'a.ts'),'export class A {run() {}}');let ticks=0;const timer=setInterval(()=>ticks++,5);

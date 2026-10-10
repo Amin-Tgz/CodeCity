@@ -16,8 +16,6 @@ const controls={
   'tl-play':'Play or pause the project’s Git history.',
   'history-compare':'Compare the selected commit structure with the current project.',
   'metric-profile-save':'Save this metric mapping in your user config for future launches.',
-  'query-clear':'Remove query tags and show all buildings.',
-  'query-save':'Save the current query with a name for reuse.',
   'list-btn':'Open a searchable building list and select a building.',
   'list-close':'Close the building list.',
   'list-minimize':'Fold or expand this panel.',
@@ -34,10 +32,8 @@ const controls={
 };
 const selectors=[
   ['[data-mode-choice="simple"]','Show metrics and history with essential inspection controls.'],
-  ['[data-mode-choice="advanced"]','Show all controls, filters, queries, and investigations.'],
+  ['[data-mode-choice="advanced"]','Show district filters, street controls, and investigations.'],
   ['.panel-fold','Fold or expand this panel.'],
-  ['#search-form button','Find a class or file and focus the camera on it.'],
-  ['#query-form button','Apply the query and highlight matching buildings.'],
   ['.metric-explain','Explain this metric'],
   ['.recent-project','Reopen this recent project.'],
   ['.folder-row, #folder-roots button','Browse this folder.'],
@@ -59,12 +55,12 @@ export function applyTooltips(root,translate) {
     if(button.title!==title)button.title=title;
   }
   for(const [selector,key] of [
-    ['#sel-height, #sel-footprint, #sel-color','Height controls how tall buildings are; footprint controls their ground area; colour controls their surface tint. Change each independently and check the legend for the current meaning.'],
+    ['#sel-height, #sel-footprint, #sel-color','Dependencies sums the weights of identified incoming and outgoing connections. Language colours indicate programming languages, not interface languages.'],
     ['#sel-mode','Boxplot groups sizes into five categories using this project’s quartiles and whiskers. Threshold uses fixed bands. Linear varies sizes continuously with compressed height so large buildings remain readable.'],
     ['#history-mode','Approximate growth estimates past sizes from file lines. Commit structure parses source at each commit. Compare with current shows additions, changes, and removed buildings. Git commits are required.'],
     ['#tl-range','history snapshot'],
     ['#ui-language','Interface language'],
-    ['#pause-motion','pause motion'],
+    ['#pause-motion','Pause animations stops pedestrians and ambient motion. Camera rotation and Git playback have separate controls.'],
   ])for(const control of root.querySelectorAll(selector)) {
     const title=translate(key);if(control.title!==title)control.title=title;
   }

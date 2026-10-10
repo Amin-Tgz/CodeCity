@@ -36,11 +36,6 @@ export async function runBrowserChecks() {
       }
     matrix._disposeGroup(matrix.buildingGroup); matrix._disposeGroup(matrix.platesGroup); matrix.street.dispose();
   });
-  await test('coverage distinguishes unknown from zero', () => {
-    city.model.buildings[0].coverage = 0;
-    city.setMapping({color:'coverage'});
-    assert(city.byBuilding.get('one').matFull.color.getHexString() !== city.byBuilding.get('two').matFull.color.getHexString(), 'unknown shown as zero');
-  });
   await test('district filter and selection survive a mapping rebuild', () => {
     city.applyFilter('a'); city.select(city.byBuilding.get('one').body); city.setMapping({height:'loc'});
     assert(!city.byBuilding.get('three').group.visible && city.selected.userData.buildingId === 'one', 'state lost');
@@ -62,9 +57,9 @@ export async function runBrowserChecks() {
     city.setMapping({height:'nom'});
     assert(city.byBuilding.get('one').matFull.emissive.getHexString() === 'ef4444', 'diff tint lost');
   });
-  await test('clearing compare preserves query highlighting', () => {
+  await test('clearing compare preserves investigation highlighting', () => {
     city.highlightSubset(['one']); city.clearDiff();
-    assert(city.querySet.has('one') && city.byBuilding.get('two').matFull.opacity === .12, 'query cleared');
+    assert(city.highlightSet.has('one') && city.byBuilding.get('two').matFull.opacity === .12, 'highlight cleared');
   });
   await test('history and district filters compose and survive remapping', () => {
     city.setHistoryFrame({files:{'a/one.py':5,'b/three.py':15}}, {'a/one.py':10,'b/three.py':30});
@@ -88,17 +83,8 @@ export async function runBrowserChecks() {
   });
   const actual = window.__codecity;
   const change = (id, value) => { const el=document.getElementById(id); el.value=value; el.dispatchEvent(new Event('change')); };
-  await test('search opens building details and selects incident streets', () => {
-    const first=actual.model.buildings[0];
-    document.getElementById('search').value=first.name;
-    document.getElementById('search-form').dispatchEvent(new Event('submit',{cancelable:true}));
-    assert(actual.focusId === first.id && document.getElementById('details').classList.contains('open'), 'search failed');
-  });
-  await test('query UI tags matches and clear restores it', () => {
-    document.getElementById('query').value='loc>=0';
-    document.getElementById('query-form').dispatchEvent(new Event('submit',{cancelable:true}));
-    assert(actual.querySet.size === actual.model.buildings.length, 'query count incorrect');
-    document.getElementById('query-clear').click(); assert(actual.querySet === null, 'clear failed');
+  await test('removed search, queries and coverage stay absent', () => {
+    for(const id of ['search','query','query-form','query-clear','query-save','query-saved','opt-coverage'])assert(!document.getElementById(id),id+' remains');
   });
   await test('all dropdown options and legend update without group leaks', () => {
     for (const id of ['sel-height','sel-footprint','sel-color','sel-mode']) {
@@ -107,7 +93,7 @@ export async function runBrowserChecks() {
         assert(actual.root.children.length === 5 && actual.byBuilding.size === actual.model.buildings.length, 'rebuild lost buildings or leaked groups');
       }
     }
-    assert(document.querySelector('.legend-notes').textContent.includes(t('test coverage')), 'legend stayed on LOC');
+    assert(document.querySelector('.legend-notes').textContent.includes(t('language')), 'legend stayed on LOC');
     change('sel-height','nom'); change('sel-footprint','noa'); change('sel-color','loc'); change('sel-mode','boxplot');
   });
   await test('street all, selected and off modes', () => {
@@ -133,9 +119,10 @@ export async function runBrowserChecks() {
   await test('member drill-down pulses selected building', () => {
     const building=actual.model.buildings.find((b) => b.members?.length);
     if (!building) throw new Error('model has no members for this check');
-    document.getElementById('search').value=building.name;
-    document.getElementById('search-form').dispatchEvent(new Event('submit',{cancelable:true}));
-    document.querySelector('.member-row').click(); assert(actual.pulseId === actual.selected.userData.buildingId, 'member pulse missing');
+    document.getElementById('list-btn').click();
+    const filter=document.getElementById('list-filter');filter.value=building.name;filter.dispatchEvent(new Event('input'));
+    [...document.querySelectorAll('.list-row')].find(row=>row.dataset.id===building.id).click();document.getElementById('list-close').click();
+    document.querySelector('.member-list .member-row').click(); assert(actual.pulseId === actual.selected.userData.buildingId, 'member pulse missing');
   });
   await test('history current snapshot and playback start/stop', async () => {
     const range=document.getElementById('tl-range'); range.value='0'; range.dispatchEvent(new Event('input'));

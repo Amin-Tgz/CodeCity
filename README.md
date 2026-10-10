@@ -121,25 +121,24 @@ by default; checkout installers use the checkout itself.
 
 ### Simple and Advanced modes
 
-**Simple** is the default. It keeps project access, search, district filtering,
-street visibility, pause motion, the legend, keyboard building list, and
-essential selected-building metrics and source preview close at hand.
+**Simple** is the default. It keeps project access, metric mapping, saved
+metric defaults, Git history, the legend, the building list, selected-building
+connections and source preview close at hand.
 
-Choose **Advanced** in the top bar for queries, saved queries, metric mapping,
-Git history, investigations, coverage import, minimap, grid, auto-hide,
-auto-orbit, metric evidence, member lists, dependency inspection, editor
-settings, and scan diagnostics. Clicking a metric switches to Advanced and
-opens its evidence. Switching back to Simple clears query/investigation
-highlights and returns history to the current model. The mode choice is
-remembered; advanced mapping choices are retained and reflected by the legend.
+Choose **Advanced** for district filtering, street controls, investigations,
+shared-route inspection, minimap, grid, auto-hide, auto-orbit, metric evidence,
+member lists, editor settings, and scan diagnostics. Clicking a metric opens
+its evidence in Advanced. Switching to Simple clears district filters and
+investigation highlights. Git playback and metric settings are retained.
+The interface and investigation explanations support all eight UI languages.
 
 Then drag to orbit, wheel to zoom, right-drag to pan, click a building for
-details. Use the search box, the district filter, the metric dropdowns, and
+details. Use the building list, the district filter, the metric dropdowns, and
 the streets / grid toggles.
 
 The UI language selector offers English, Spanish, French, German, Chinese,
 Japanese, Arabic, and Persian. Arabic and Persian use a right-to-left layout;
-code identifiers, queries, and file paths retain their original spelling.
+code identifiers and file paths retain their original spelling.
 Language and folded panel choices are remembered in browser storage.
 Selecting a building temporarily folds Explore and positions its details
 below the folded header. Closing details restores Explore; reopening
@@ -193,12 +192,7 @@ is documented by [Clang](https://clang.llvm.org/docs/JSONCompilationDatabase.htm
 Generated source outside excluded output folders remains visible with a
 path/header classification and is excluded from investigation rankings.
 
-Git history loads automatically when Git is installed. Coverage can be
-imported from **Investigate → Import coverage JSON** using exact relative
-paths (or absolute paths under the project root): `{ "src/a.ts": 0.8 }`,
-`{ "src/a.ts": 80 }`, or `{ "src/a.ts": { "pct": 1 } }` for an explicit 1%.
-Istanbul summary entries with `lines.pct` are supported. Coverage is file-level
-and shared by the declarations in that file; missing coverage stays unknown.
+Git history loads automatically when Git is installed.
 
 ### Project exclusions and scan diagnostics
 
@@ -266,7 +260,7 @@ other building. Package breadcrumbs filter a package and its descendants;
 the minimap offers a compact spatial overview with clickable buildings.
 
 Investigation presets expose their thresholds and sortable evidence:
-large and untested (LOC ≥ 200, known coverage < 50%), high fan-out (at least
+high fan-out (at least
 5 distinct targets), syntactic complexity (at least 15), frequent changes
 (at least 3 non-merge commits touching the file, following detected file
 renames), and dependency cycles. These are candidates for source review.
@@ -355,7 +349,7 @@ and applies to any codebase:
   (NOM / NOA / LOC / DEPS, plus the NOC mix-up) and walks through how to
   analyse a codebase with the tool. Side-by-side examples show balanced and
   unusual cities, with guidance on large outliers, district boundaries,
-  coupling, state, and coverage. These signals guide source review; they do
+  coupling and state. These signals guide source review; they do
   not claim that size or colour alone proves code quality.
 
 **Accessibility** - the **☰** button opens a filterable list of every building
@@ -364,12 +358,7 @@ buildings in name order.
 Large lists offer a “Show more” button. The help dialog supports Escape,
 keyboard focus containment and focus restoration.
 
-**Query / tag** - the query box (`type:class`, `loc>200`, `lang:ts`,
-`district:backend`, or a bare word matching name/file; terms AND-combine)
-tints every matching building and dims the rest, and queries can be saved.
-Clicking a building lists its members (methods/attributes) for source previews
-and dependency investigation.
-Language aliases include `ts`, `tsx`, `js`, `jsx`, `py`, and `cs`.
+Clicking a building lists its members and incoming/outgoing dependencies.
 
 Street modes: **all**, **selected building only** (relationship on demand -
 picking a building shows just its incident lanes), or **off**; plus a **grid**
@@ -395,23 +384,25 @@ The three dropdowns in the left panel let you remap the city live:
 
 Height/footprint/mapping changes rebuild geometry. Colour-only changes preserve
 positions, meshes and street routes. The
-**colour** dropdown also offers semantic modes: **language** (a hue per
-language, shown as a swatch legend) and **coverage** (red → green), the latter
-after importing coverage in Advanced mode.
-  Missing coverage is grey; zero coverage is red. Numeric coverage values
-  in `[0, 1]` are fractions; values above 1 are percentages. An explicit
-  `{ "pct": 1 }` means 1%, resolving that boundary ambiguity.
+**colour** dropdown also offers **language**, with one hue per programming
+language and a swatch legend. Dependency metrics sum the weights of incoming
+and outgoing identified connections.
 
 ## Notes
 
 - Project models are scanned by the Node launcher when you open a folder.
-- Streets are dependency edges between buildings (up to 2,500 drawn by
-  weight, toggleable) and drawn on the ground with pedestrians — they are an
-  addition on top of the classic CodeCity metaphor, which only uses positions,
-  sizes and colours.
-  Links without a clear street route, across package terraces, or beyond the
-  drawing budget remain in the model and dependency inspector; the top bar
-  reports the number of links without streets.
+- Ground streets show local dependencies. Links across packages or terraces,
+  links without a ground route, and links beyond the ground drawing budget are
+  grouped into directed elevated routes. Route width and pedestrian density
+  indicate total weight; pedestrians represent code links, not actual users.
+  Click a shared route (or choose it in the shared connections list) to inspect
+  its edges and select either endpoint. Selecting a building shows every direct
+  incoming/outgoing link, with arrows, independently of the overview budget.
+  The top bar reports represented links rather than counting shared routes as
+  single dependencies. A building with no identified links is labelled as such;
+  absence of evidence does not establish independence.
+- **Pause animations** stops ambient motion and pedestrians. Auto-orbit and
+  Git playback have separate controls.
 
 ## Validation
 
@@ -432,7 +423,7 @@ await (await import('./tests/browser_improvements.js')).runImprovementChecks()
 ```
 
 The browser suite covers rendering, 240 combinations of metric mappings,
-filter/history/compare interactions, query controls, streets, keyboard list,
+filter/history/compare interactions, investigations, streets, keyboard list,
 help, member highlighting, and empty models. The UI history/member checks
 use the checked-in example model; the optional UI history check skips models
 without a timeline. Surroundings checks verify tree boundaries, bird motion,
@@ -445,7 +436,7 @@ comparison controls and CPU/RAM UI have been removed.
 
 `tests/browser_modes.js` exports `runModeChecks(page, projectPath)` for a
 fresh isolated Node server and a small source fixture. It checks mode
-defaults and persistence, source preview, metric evidence, query cleanup,
+defaults and persistence, source preview, metric evidence, investigation cleanup,
 the folder dialog, and mobile Persian layout. On Windows, run
 `powershell -NoProfile -ExecutionPolicy Bypass -File tests/installer.windows.ps1`
 to check missing/outdated Node, Current selection, and corrupt downloads

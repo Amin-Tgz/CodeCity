@@ -265,8 +265,6 @@ button:active:not(:disabled) { transform: scale(.97); }
   color: var(--muted);
 }
 
-#search-form, #query-form { display: flex; gap: 6px; }
-#search-form input, #query-form input { min-width: 0; flex: 1; }
 
 #controls input[type="search"],
 #controls select {
@@ -294,6 +292,9 @@ button:active:not(:disabled) { transform: scale(.97); }
   color: var(--text);
 }
 .ghost-btn:hover { background: rgba(56, 189, 248, 0.24); }
+.connection-row { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 5px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--panel-border); }
+.connection-row .member-row { min-width: 0; overflow-wrap: anywhere; }
+.connection-weight { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
 
 .ctrl-grid {
   display: grid;
@@ -308,17 +309,6 @@ button:active:not(:disabled) { transform: scale(.97); }
 
 .query-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .query-actions .mini-btn { flex: 0 0 auto; }
-#query-saved {
-  flex: 1;
-  min-width: 90px;
-  padding: 6px 8px;
-  background: rgba(7, 11, 22, 0.9);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
-  font-size: 11px;
-}
 .muted-note { font-size: 11px; color: var(--muted); min-height: 14px; }
 
 .toggles { display: flex; flex-wrap: wrap; gap: 7px; }

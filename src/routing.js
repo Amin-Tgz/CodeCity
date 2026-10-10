@@ -1,3 +1,4 @@
+import {sharedConnections} from './connections.js';
 export const STREET_Y = 0.66;
 const TILE = 6;
 
@@ -296,7 +297,9 @@ export class StreetRouter {
       if(!res)unroutedEdges.push({...r,reason:reason||'No clear street route'});
       else paths.push({pts:res.pts,width:res.tier.width,tier:res.tier.name,weight:r.weight,a:r.a,b:r.b});
     }
-    return {paths,unroutedEdges};
+    const sharedPaths=sharedConnections(unroutedEdges,this.by);
+    const represented=new Set(sharedPaths.flatMap(p=>p.edges));
+    return {paths:[...paths,...sharedPaths],unroutedEdges:unroutedEdges.filter(e=>!represented.has(e))};
   }
 }
 export {TIERS,tierIndexFor};
