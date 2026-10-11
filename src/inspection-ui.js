@@ -12,8 +12,9 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   host.prepend(crumb);
   drawRelationshipDiagram(host,b,city,onSelect);
   if(city.model.meta.source==='scan'&&!city.model.meta.commit&&!city.model.meta.comparisonSources) {
-    const actions=el('div',null,'query-actions');actions.dataset.advanced='';
-    for(const [label,rule] of [['Exclude class / module',{kind:'symbol',value:b.id}],['Exclude file',{kind:'file',value:b.file}],['Exclude folder',{kind:'folder',value:b.district}]]){const button=el('button',label,'mini-btn');button.onclick=()=>excludePart(rule);actions.append(button);}
+    const actions=el('div',null,'query-actions'),button=el('button',t('Exclude this building'),'mini-btn'),error=el('p','','muted-note');error.setAttribute('role','alert');
+    button.onclick=async()=>{button.disabled=true;error.textContent='';try{await excludePart({kind:'symbol',value:b.id});}catch(err){error.textContent=err.message;}finally{button.disabled=false;}};
+    actions.append(button,error);
     host.append(actions);
   }
   const evidence=el('details',null,'metric-evidence'),summary=el('summary','How these metrics were obtained');evidence.append(summary);
@@ -32,10 +33,13 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   setting.dataset.advanced='';
   try{input.value=localStorage.getItem('codecity.editor')||'vscode://file/{path}:{line}';}catch{input.value='vscode://file/{path}:{line}';}
   setting.append(settingTitle,input,el('p','Placeholders: {path}, {line}, {end}.','muted-note'));preview.append(show,status,editor,code,setting);host.append(preview);
-  let current=null,serial=0;
+  let current=null,serial=0,previewOpen=false;
+  code.hidden=true;status.hidden=true;show.setAttribute('aria-expanded','false');
+  const setPreview=open=>{previewOpen=open;code.hidden=!open;status.hidden=!open;show.textContent=t(open?'Close source preview':'Preview source');show.setAttribute('aria-expanded',String(open));if(!open){serial++;current=null;code.replaceChildren();status.textContent='';editor.hidden=true;}};
   const updateEditor=()=>{if(!current)return;try{if(city.model.meta.commit||b.comparison_status==='removed'){editor.hidden=true;return;}editor.href=editorLink(input.value,current.path,current.start,current.end);editor.hidden=false;try{localStorage.setItem('codecity.editor',input.value);}catch{}}catch(e){editor.hidden=true;status.textContent=e.message;}};
   input.onchange=updateEditor;
   const source=async member=>{
+    setPreview(true);
     const seq=++serial;status.textContent='Loading source…';code.replaceChildren();editor.hidden=true;
     try {
       let data;
@@ -47,7 +51,7 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
       updateEditor();code.querySelector('.selected-line')?.scrollIntoView({block:'nearest'});
     }catch(e){if(seq===serial)status.textContent=e.message;}
   };
-  show.onclick=()=>source();host.querySelectorAll('.member-row').forEach(button=>button.addEventListener('click',()=>source(Number(button.dataset.mi))));
+  show.onclick=()=>previewOpen?setPreview(false):source();host.querySelectorAll('.member-row').forEach(button=>button.addEventListener('click',()=>source(Number(button.dataset.mi))));
   const deps=el('details');deps.open=true;deps.append(el('summary',t('Dependencies and cycles')));
   const cycle=graph.components.get(b.id);deps.append(el('p',cycle?t('Mutually reachable: {names}. This list is not a cycle path.',{names:cycle.map(id=>graph.byId.get(id).name).join(' → ')}):t('No directed cycle in the available graph.'),'muted-note'));
   if(!graph.incoming.get(b.id).length&&!graph.outgoing.get(b.id).length)deps.append(el('p',t('No connection was identified in the project analysis. This does not prove independence.'),'muted-note'));

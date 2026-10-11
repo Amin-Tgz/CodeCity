@@ -40,6 +40,12 @@ No dependency installation is needed to run the checkout. The launcher opens
 your browser; choose **Project → Open project** to select a folder. Drag to
 orbit, scroll to zoom, right-drag to pan, and click a building for details.
 
+Use **Project → Exclusions** in either mode to add file, folder, class/module,
+or path-pattern rules, then apply them together. **Exclude this building** in
+building details applies immediately to that building alone; remove its rule
+from the menu to restore it. Source files stay on disk. Click the source-preview
+button again to close the preview, including while it is loading.
+
 Run directly from GitHub with Node and npm installed:
 
 ```bash

@@ -110,12 +110,12 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
           if(busy) return json(409,{error:'A project is already being scanned. Please wait.'});
           if(typeof body.path!=='string'||!body.path.trim()) return json(400,{error:'Choose a project folder.'});
           busy=true;
-          try {const project=await fs.realpath(path.resolve(body.path.trim()));const rules=validateRules([...(exclusionsByRoot[project]||[]),...validateRules(body.exclusions)]);const next=await runAnalysis('scan',project,undefined,{exclusions:rules});model=next;projectEpoch++;snapshots.clear();exclusionsByRoot[project]=rules;await saveExclusions();recent=[model.meta.root,...recent.filter(p=>p!==model.meta.root)].slice(0,10);await saveRecent();return json(200,{model,recent});}finally{busy=false;}
+          try {const project=await fs.realpath(path.resolve(body.path.trim()));const rules=validateRules([...(exclusionsByRoot[project]||[]),...validateRules(body.exclusions,{allowRoot:false})]);const next=await runAnalysis('scan',project,undefined,{exclusions:rules});model=next;projectEpoch++;snapshots.clear();exclusionsByRoot[project]=rules;await saveExclusions();recent=[model.meta.root,...recent.filter(p=>p!==model.meta.root)].slice(0,10);await saveRecent();return json(200,{model,recent});}finally{busy=false;}
         }
         if(url.pathname==='/api/project/exclusions') {
           if(busy)return json(409,{error:'Please wait for the scan.'});
           if(!model.meta.root||body.root!==model.meta.root)return json(409,{error:'The open project changed. Open exclusions again.'});
-          const rules=validateRules(body.rules),project=model.meta.root;busy=true;
+          const rules=validateRules(body.rules,{allowRoot:false}),project=model.meta.root;busy=true;
           try{const next=await runAnalysis('scan',project,undefined,{exclusions:rules});model=next;exclusionsByRoot[project]=rules;projectEpoch++;snapshots.clear();await saveExclusions();return json(200,{model});}finally{busy=false;}
         }
         if(url.pathname==='/api/project/close') {if(busy) return json(409,{error:'Please wait for the scan.'});model=emptyModel();projectEpoch++;snapshots.clear();return json(200,{model});}

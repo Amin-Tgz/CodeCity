@@ -204,9 +204,10 @@ Git history loads automatically when Git is installed.
 
 Choose **Project → Exclusions…** to omit a folder, file, class/module, or path
 pattern. Type to search the available paths and declarations, add rules, then
-click **Apply exclusions**. Selected building details also offer **Exclude
-class / module**, **Exclude file**, and **Exclude folder** shortcuts. Remove
-a rule and apply again to restore the source. Exclusions remove the relevant
+click **Apply exclusions**. This menu is available in Simple and Advanced.
+Selected building details offer only **Exclude this building**, which applies
+immediately and keeps other declarations in the same file visible. Remove
+a rule and apply again to restore its buildings. Exclusions remove the relevant
 buildings and their edges without modifying project files. Rules are saved
 per project beside the recent-project settings, including across app restarts.
 They also apply to commit-structure snapshots and follow Git-detected file
@@ -218,6 +219,11 @@ folder, `**` matches nested folders, and `?` matches one character.
 For example, `**/tests/**`, `samples/`, and `**/*.generated.*`.
 Choose **Folder** for an entire directory; a path pattern `samples/**` excludes
 its descendants. Rules can be cancelled before applying.
+The project root cannot be added as a folder rule. If a saved legacy `Folder: .`
+rule hides the whole city, open Exclusions, remove that rule and apply.
+An empty city keeps the Exclusions button available for restoring hidden parts.
+**Preview source** toggles the source preview; **Close source preview** also
+cancels pending display updates. Selecting a member opens its source lines.
 
 **Exclusions → Scan diagnostics** shows resolved, ambiguous and unresolved
 reference counts and offers a JSON report with warnings, bounded examples,
@@ -451,6 +457,19 @@ the folder dialog, and mobile Persian layout. On Windows, run
 `powershell -NoProfile -ExecutionPolicy Bypass -File tests/installer.windows.ps1`
 to check missing/outdated Node, Current selection, and corrupt downloads
 with mocked network responses and no user PATH changes.
+
+`tests/browser_exclusions.js` exports `runExclusionChecks(page, options)`.
+Pass the isolated server URL as `base`, a small fixture path as `fixture`,
+an array of `{name, path, folder}` real projects as `projects`, and an existing
+screenshot directory as `output`. The fixture uses `root.ts` with classes
+`First` (with a `run` method) and `Second`, plus `file.ts`, `src/nested/a.ts`,
+`src/nested-other/a.ts`, and `پوشه با فاصله/a.ts`, each containing a class.
+Seed its saved exclusions with `Folder: .` before launching the isolated server
+to check legacy recovery. The flow also tests preview cancellation, failed
+requests, combined rules, project isolation, reopening and full restoration.
+It returns `{checks, results, errors}` and records the result on
+`window.__exclusionReport`. `tests/exclusions.test.cjs` adds API and scanner
+regressions to `npm test`, including restart persistence and root protection.
 
 See [REVIEW.md](REVIEW.md) for review findings, verified behavior, remaining
 limitations and suggested next improvements.

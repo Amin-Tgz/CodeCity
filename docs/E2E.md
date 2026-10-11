@@ -1,4 +1,44 @@
-# Public-project end-to-end verification — 9 October 2026
+# Public-project end-to-end verification
+
+## Preview and exclusions verification — 11 October 2026
+
+The preview/exclusion changes pass all 45 automated tests (10 frontend/model
+checks and 35 server tests). Browser checks exercised a selected class in a
+file with multiple buildings and a folder exclusion on each of the same three
+checkouts listed below, without modifying or executing their source.
+
+| Project | Excluded folder | Before | After exclusion | After restoring |
+| --- | --- | ---: | ---: | ---: |
+| Django | `tests` | 11,650 | 3,259 | 11,650 |
+| Vue core | `packages/compiler-core` | 868 | 741 | 868 |
+| OpenCV | `modules/calib3d` | 18,012 | 17,535 | 18,012 |
+
+Remaining building IDs matched exactly the declarations outside the excluded
+folder. Rendered counts matched the model, removed district filters cleared,
+and no edge referenced an excluded building. Reloading, switching projects,
+reopening and removing rules preserved isolation and restored all original IDs.
+The selected-building action removed only one declaration, retaining the other
+buildings in its source file.
+
+A small fixture covered preview open/close/reopen, closing during a delayed
+request, member selection, both interface modes, Persian labels, combined
+file/folder rules, nested folders, sibling folder names and spaced Persian paths.
+An injected failed request preserved the city and re-enabled the action. API
+tests reproduced the old `Folder: .` failure, rejected new root rules, retained
+legacy rules for removal and checked persistence across server restarts.
+
+OpenCV exceeded the browser test's initial 30-second wait; its request completed
+successfully. Its flow was rerun with a 180-second default wait and passed.
+These results describe the tested checkouts, not a general performance guarantee.
+
+All 21 screenshots were opened and visually inspected, including before,
+excluded and restored views of every real project, preview states, Persian
+building details, the top menu and empty-city recovery. Local evidence is in
+ignored `output/playwright/exclusion-fix/`: `report.md`, `automated-tests.txt`
+and the PNG files. The reusable browser flow is `tests/browser_exclusions.js`;
+the setup and arguments are documented in [GUIDE.md](GUIDE.md).
+
+## History and profile verification — 9 October 2026
 
 The final working tree passes 33 browser checks on each of three public Git
 repositories, plus all 42 automated tests. A fresh Node process on a different

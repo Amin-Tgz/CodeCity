@@ -1,5 +1,23 @@
 // Spanish, French, German, Chinese, Japanese, Arabic, Persian.
 export default {
+  'Add several exclusion rules before applying. Source files stay on disk. If a saved Folder: . rule hides the whole project, remove it and apply. An empty city keeps Exclusions available for recovery.':[
+    'Añade varias reglas antes de aplicar. Los archivos permanecen en el disco. Si una regla guardada Folder: . oculta el proyecto entero, elimínala y aplica. La ciudad vacía conserva Exclusiones para restaurarla.',
+    'Ajoutez plusieurs règles avant de les appliquer. Les fichiers restent sur le disque. Si une règle enregistrée Folder: . masque tout le projet, retirez-la et appliquez. Les exclusions restent accessibles dans une ville vide.',
+    'Mehrere Regeln vor dem Anwenden hinzufügen. Quelldateien bleiben auf dem Datenträger. Wenn Folder: . das gesamte Projekt verbirgt, die Regel entfernen und anwenden. Ausschlüsse bleiben in einer leeren Stadt zur Wiederherstellung verfügbar.',
+    '可以先添加多条排除规则，再一起应用。源码文件仍保留在磁盘上。如果已保存的 Folder: . 规则隐藏了整个项目，请删除该规则并应用。空城市仍可打开排除规则来恢复内容。',
+    '複数の除外規則を追加してから適用できます。ソースファイルはディスクに残ります。保存済みの Folder: . が全体を隠している場合は削除して適用してください。都市が空でも除外設定から復元できます。',
+    'أضف عدة قواعد قبل التطبيق. تبقى ملفات المصدر على القرص. إذا أخفت قاعدة محفوظة Folder: . المشروع كله، احذفها وطبّق. تبقى الاستثناءات متاحة في المدينة الفارغة لاستعادتها.',
+    'پیش از اعمال، چند قانون استثنا اضافه کنید. فایل‌های منبع روی دیسک باقی می‌مانند. اگر قانون قدیمی «پوشه: .» کل پروژه را پنهان کرده، آن را حذف و اعمال کنید. در شهر خالی نیز استثناها برای بازیابی در دسترس‌اند.',
+  ],
+  'Manage exclusions from Project → Exclusions in either mode. Exclude this building applies immediately to the selected building only. Preview source opens the code; click again to close it.':[
+    'Gestiona las exclusiones desde Proyecto → Exclusiones en ambos modos. Excluir este edificio actúa inmediatamente solo sobre el seleccionado. Pulsa de nuevo la vista del código para cerrarla.',
+    'Gérez les exclusions via Projet → Exclusions dans les deux modes. Exclure ce bâtiment agit immédiatement sur le bâtiment sélectionné. Cliquez de nouveau sur l’aperçu pour le fermer.',
+    'Ausschlüsse in beiden Modi über Projekt → Ausschlüsse verwalten. Dieses Gebäude ausschließen wirkt sofort nur auf das ausgewählte Gebäude. Erneut auf die Quellvorschau klicken, um sie zu schließen.',
+    '两种模式均可通过项目 → 排除管理规则。排除此建筑会立即仅移除选中的建筑。再次点击源码预览可关闭。',
+    '両モードでプロジェクト → 除外から管理します。この建物を除外すると選択した建物だけがすぐ消えます。ソースプレビューはもう一度クリックすると閉じます。',
+    'أدر الاستثناءات من المشروع ← الاستثناءات في كلا الوضعين. استثناء هذا المبنى يطبّق فوراً على المبنى المحدد فقط. انقر معاينة المصدر مجدداً لإغلاقها.',
+    'در هر دو حالت، استثناها را از «پروژه ← استثناها» مدیریت کنید. «مستثنی کردن این ساختمان» فوراً فقط همان ساختمان را کنار می‌گذارد. پیش‌نمایش کد را با کلیک دوباره ببندید.',
+  ],
   'Getting started':['Primeros pasos','Premiers pas','Erste Schritte','开始使用','はじめに','البدء','شروع کار'],
   'Git history':['Historial de Git','Historique Git','Git-Verlauf','Git 历史','Git 履歴','سجل Git','تاریخچهٔ گیت'],
   'Inspecting buildings':['Inspeccionar edificios','Inspecter les bâtiments','Gebäude untersuchen','检查建筑','建物の調査','فحص المباني','بررسی ساختمان‌ها'],

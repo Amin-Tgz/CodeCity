@@ -6,6 +6,8 @@ export const HELP_SECTIONS=[
   ['Getting started',[
     'Open a folder from Project → Open project. Browse folders, go to the parent folder, or paste a path. Source is scanned locally without running project code.',
     'Open recent reopens a saved folder. Close project clears the city. Exclusions hide files, folders, symbols, or path patterns; Apply rescans, and removing a rule restores them.',
+    'Manage exclusions from Project → Exclusions in either mode. Exclude this building applies immediately to the selected building only. Preview source opens the code; click again to close it.',
+    'Add several exclusion rules before applying. Source files stay on disk. If a saved Folder: . rule hides the whole project, remove it and apply. An empty city keeps Exclusions available for recovery.',
   ]],
   ['Interface mode',[
     'Advanced adds district filtering, street controls, and investigations. Your mode is remembered.',

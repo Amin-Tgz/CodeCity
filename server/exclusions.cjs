@@ -1,10 +1,12 @@
 const normalize=s=>s.replaceAll('\\','/').replace(/^\.\//,'').replace(/\/+$/,'');
-function validateRules(rules=[]) {
+function validateRules(rules=[],{allowRoot=true}={}) {
   if(!Array.isArray(rules)||rules.length>200)throw Error('Use at most 200 exclusion rules.');
   const seen=new Set();
   return rules.map(r=>{
     if(!r||!['folder','file','symbol','pattern'].includes(r.kind)||typeof r.value!=='string'||!r.value.trim()||r.value.length>512)throw Error('Invalid exclusion rule.');
     const value=normalize(r.value.trim());
+    if(!value)throw Error('Invalid exclusion rule.');
+    if(!allowRoot&&r.kind==='folder'&&value==='.')throw Error('Choose a subfolder, not the project root.');
     if(value.startsWith('/')||/^[A-Za-z]:/.test(value)||value.split('/').includes('..')||/[\r\n\0]/.test(value))throw Error('Exclusions must use paths relative to the project.');
     return {kind:r.kind,value};
   }).filter(r=>{const key=r.kind+'\0'+r.value;if(seen.has(key))return false;seen.add(key);return true;});
