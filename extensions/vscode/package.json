@@ -3,7 +3,7 @@
   "displayName": "CodeCity 3D Viewer",
   "description": "Explore any codebase as an interactive 3D code city inside VS Code. Classes and modules become buildings, folders become districts, and imports become streets — for JavaScript, TypeScript, Python, Java, C/C++, C#, Go, Rust, Qt and more.",
   "version": "0.4.0",
-  "publisher": "Amin-Tgz",
+  "publisher": "Amin-Tz",
   "license": "MIT",
   "icon": "icon.png",
   "repository": {

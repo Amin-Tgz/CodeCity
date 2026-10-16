@@ -110,7 +110,7 @@ as buildings with estimated metrics.
 Remove the extension from the Extensions view, or run:
 
 ```
-code --uninstall-extension Amin-Tgz.codecity
+code --uninstall-extension Amin-Tz.codecity
 ```
 
 To uninstall the standalone command-line tool, see the
