@@ -37,10 +37,16 @@
     "Other"
   ],
   "main": "./extension.js",
-  "activationEvents": [
-    "onCommand:codecity.open",
-    "onCommand:codecity.openInBrowser"
-  ],
+  "scripts": {
+    "vscode:prepublish": "node ../../scripts/bundle-vscode.cjs"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "CodeCity launches a local analysis process that reads files in the workspace."
+    },
+    "virtualWorkspaces": false
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [

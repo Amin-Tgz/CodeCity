@@ -19,7 +19,8 @@
     "benchmark": "node scripts/benchmark.mjs",
     "audit:project": "node scripts/audit-project.cjs",
     "icon:vscode": "node scripts/make-vscode-icon.mjs",
-    "package:vscode": "node scripts/bundle-vscode.cjs && cd extensions/vscode && npx @vscode/vsce package --githubBranch main --baseContentUrl https://github.com/Amin-Tgz/CodeCity/blob/main/extensions/vscode/ --baseImagesUrl https://raw.githubusercontent.com/Amin-Tgz/CodeCity/main/extensions/vscode/",
+    "package:vscode": "cd extensions/vscode && npx @vscode/vsce package",
+    "publish:vscode": "cd extensions/vscode && npx @vscode/vsce publish",
     "uninstall:win": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/uninstall.ps1",
     "uninstall:unix": "sh scripts/uninstall.sh"
   },

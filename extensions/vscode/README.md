@@ -1,7 +1,7 @@
 # CodeCity 3D Viewer
 
 <p align="center">
-  <img src="media/codecity.png" alt="CodeCity logo" width="96" />
+  <img src="https://raw.githubusercontent.com/Amin-Tgz/CodeCity/main/extensions/vscode/media/codecity.png" alt="CodeCity logo" width="96" />
 </p>
 
 Explore any codebase as an interactive **3D code city** without leaving VS Code.
@@ -11,7 +11,7 @@ lines of code (LOC) become height, footprint and colour. CodeCity scans the
 source directly, so no compilers, build steps, Python, or project dependencies
 are required.
 
-![CodeCity 3D code city inside VS Code](media/screenshot.jpg)
+![CodeCity 3D code city inside VS Code](https://raw.githubusercontent.com/Amin-Tgz/CodeCity/main/extensions/vscode/media/screenshot.jpg)
 
 ## Features
 
@@ -118,4 +118,4 @@ To uninstall the standalone command-line tool, see the
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/Amin-Tgz/CodeCity/blob/main/extensions/vscode/LICENSE)
