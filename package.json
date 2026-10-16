@@ -4,14 +4,16 @@
   "description": "Explore mixed-language projects as interactive 3D code cities",
   "type": "module",
   "bin": {
-    "codecity": "server/cli.cjs"
+    "codecity": "server/cli.cjs",
+    "code-city": "server/cli.cjs"
   },
   "scripts": {
     "start": "node server/cli.cjs",
-    "test": "node tests/unit.mjs && node --test tests/server.test.cjs tests/improvements.test.cjs tests/feedback.test.cjs tests/runtime.test.cjs tests/profile.test.cjs tests/history-blobs.test.cjs tests/exclusions.test.cjs",
+    "test": "node tests/unit.mjs && node --test tests/server.test.cjs tests/improvements.test.cjs tests/feedback.test.cjs tests/runtime.test.cjs tests/profile.test.cjs tests/history-blobs.test.cjs tests/exclusions.test.cjs tests/e2e_playwright.mjs",
     "build:parsers": "node scripts/build-parsers.cjs",
     "benchmark": "node scripts/benchmark.mjs",
-    "audit:project": "node scripts/audit-project.cjs"
+    "audit:project": "node scripts/audit-project.cjs",
+    "package:vscode": "cd extensions/vscode && npx @vscode/vsce package"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -31,6 +33,7 @@
   ],
   "devDependencies": {
     "esbuild": "0.25.12",
+    "playwright": "^1.64.1",
     "tree-sitter-wasms": "0.1.13",
     "typescript": "5.9.3",
     "web-tree-sitter": "0.20.8"

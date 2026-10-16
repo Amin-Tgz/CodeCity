@@ -59,6 +59,8 @@ mkdir -p "$bin_root"
 quote_path() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 { printf '#!/bin/sh\nexec '; quote_path "$node_exe"; printf ' '; quote_path "$cli_path"; printf ' "$@"\n'; } > "$bin_root/codecity"
 chmod +x "$bin_root/codecity"
-echo "CodeCity installed. Run: $bin_root/codecity"
-case ":$PATH:" in *":$bin_root:"*) ;; *) echo "Add $bin_root to your PATH to use the command 'codecity'." ;; esac
+cp "$bin_root/codecity" "$bin_root/code-city"
+chmod +x "$bin_root/code-city"
+echo "CodeCity installed. Run: $bin_root/codecity or $bin_root/code-city"
+case ":$PATH:" in *":$bin_root:"*) ;; *) echo "Add $bin_root to your PATH to use the command 'codecity' or 'code-city'." ;; esac
 if [ "$no_launch" != 1 ]; then exec "$node_exe" "$cli_path"; fi

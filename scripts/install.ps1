@@ -89,10 +89,13 @@ if ($LASTEXITCODE -ne 0) { throw 'CodeCity package installation failed.' }
 $cliPath = Join-Path $appPrefix 'node_modules\codecity-viewer\server\cli.cjs'
 if (-not (Test-Path -LiteralPath $cliPath)) { throw 'Installed package does not contain the CodeCity launcher.' }
 $launcher = Join-Path $installRoot 'codecity.cmd'
-[IO.File]::WriteAllText($launcher, "@echo off`r`n`"$nodeExe`" `"$cliPath`" %*`r`n", [Text.Encoding]::Default)
+$launcherDash = Join-Path $installRoot 'code-city.cmd'
+$launcherScript = "@echo off`r`n`"$nodeExe`" `"$cliPath`" %*`r`n"
+[IO.File]::WriteAllText($launcher, $launcherScript, [Text.Encoding]::Default)
+[IO.File]::WriteAllText($launcherDash, $launcherScript, [Text.Encoding]::Default)
 $userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
 if (-not $NoPath -and @($userPath -split ';') -notcontains $installRoot) {
     [Environment]::SetEnvironmentVariable('Path', ($userPath.TrimEnd(';') + ';' + $installRoot).TrimStart(';'), 'User')
 }
-Write-Host "CodeCity installed. In a new terminal, run: codecity"
+Write-Host "CodeCity installed. In a new terminal, run: codecity or code-city"
 if (-not $NoLaunch) { & $nodeExe $cliPath; if ($LASTEXITCODE -ne 0) { throw 'CodeCity exited with an error.' } }
