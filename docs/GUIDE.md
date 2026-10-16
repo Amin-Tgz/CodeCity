@@ -158,9 +158,11 @@ arrows and selectable nodes, with keyboard support and expandable neighbor lists
 **Highlight related buildings** is the default. **Ground streets** adds local
 streets; **Off** disables city relationship highlighting and streets.
 
-Building details have **copy path** and **Open in file manager** actions.
-On Windows, Explorer selects the source file; on Linux, `xdg-open` opens its
+Building details have **copy path**, **Open in editor** (with VS Code, Cursor, or system default selection), and **Open in file manager** actions.
+The topbar also provides a dedicated **Open folder** button (`#open-project-folder`) to reveal the project root directory.
+On Windows, Explorer selects the source file or opens the project folder without hiding the window; on Linux, `xdg-open` opens its
 containing folder in the default file manager; on macOS, Finder reveals it.
+The dependency map supports expanding and collapsing connections with **Show more** and **Show less** controls.
 
 ### Mixed-language scanning
 

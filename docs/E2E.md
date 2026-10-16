@@ -1,5 +1,18 @@
 # Public-project end-to-end verification
 
+## Features, editor integration, and Playwright verification — October 2026
+
+The new features and improvements pass all 46 automated tests (10 frontend unit checks and 36 server and Playwright E2E tests).
+The dedicated Playwright suite (`tests/e2e_playwright.mjs`) verifies:
+- Global CLI commands (`codecity` and `code-city`) across environments.
+- Topbar project folder button (`#open-project-folder`) and file manager reveal command execution on Windows and Linux without hidden windows.
+- Building selection and direct "Open in editor" action (with VS Code, Cursor, and system default support), verifying removal of the in-browser text code preview.
+- District filter breadcrumb toggles with visual active states.
+- Dependency map expand/collapse with "Show more" and "Show less" controls.
+- Centered positioning of the navigation hint box (`#hint`).
+- Enriched Help dialog with emojis, 3D building dimension diagram, and navigation cards.
+- Clean removal of the Investigate and Shared Connections sections.
+
 ## Preview and exclusions verification — 11 October 2026
 
 The preview/exclusion changes pass all 45 automated tests (10 frontend/model

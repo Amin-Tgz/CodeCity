@@ -28,7 +28,22 @@ they do not establish code quality or a complete runtime call graph.
 
 ## Get started
 
-Requires **Node.js 22.13 or newer**. From a checkout:
+### 1. Global CLI command (Windows, macOS, Linux)
+Install globally to launch CodeCity from any terminal using `codecity` or `code-city`:
+
+```bash
+npm install -g .
+# Or once published: npm install -g codecity-viewer
+
+# Run in any directory:
+codecity
+# Open current folder directly:
+codecity .
+# Open any project directory:
+codecity /path/to/project
+```
+
+Or run directly from a local checkout:
 
 ```bash
 npm start
@@ -36,15 +51,19 @@ npm start
 npm start -- --root /path/to/project
 ```
 
-No dependency installation is needed to run the checkout. The launcher opens
-your browser; choose **Project → Open project** to select a folder. Drag to
-orbit, scroll to zoom, right-drag to pan, and click a building for details.
+### 2. VS Code Extension
+Explore 3D code cities directly inside Visual Studio Code:
+1. Download `codecity-0.4.0.vsix` from [GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases).
+2. Press `Ctrl+Shift+P` in VS Code, choose `Extensions: Install from VSIX...`, and select the package.
+3. Click the `$(globe) CodeCity` status bar item or right-click any folder in the File Explorer.
 
-Use **Project → Exclusions** in either mode to add file, folder, class/module,
-or path-pattern rules, then apply them together. **Exclude this building** in
-building details applies immediately to that building alone; remove its rule
-from the menu to restore it. Source files stay on disk. Click the source-preview
-button again to close the preview, including while it is loading.
+### Key Features and Improvements:
+- **Open Project Folder**: Direct topbar action (`📁 Open folder`) to open the project root in your OS file manager.
+- **File Manager Bug Fix**: Reliable file and folder reveal on Windows (no hidden windows) and Linux (`xdg-open`).
+- **Open in Editor**: Choose your preferred editor (VS Code, Cursor, or System Default) and jump to specific line numbers directly.
+- **Show Less / Collapse**: Expand and collapse dependency maps on demand.
+- **Active District Filter Breadcrumbs**: Clear active/inactive styling and toggle-off on repeat clicks.
+- **Enriched Help Guide**: Interactive visual SVG diagrams of building dimensions, emoji indicators, and navigation cards.
 
 Run directly from GitHub with Node and npm installed:
 
