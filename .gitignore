@@ -7,3 +7,5 @@ node_modules/
 dist/
 *.tgz
 .npm-cache/
+extensions/vscode/runtime/
+extensions/vscode/*.vsix

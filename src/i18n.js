@@ -198,7 +198,11 @@ export function setLocale(value) {
   window.dispatchEvent(new Event('languagechange'));translate();
 }
 export function initI18n() {
-  let saved='en';try{saved=localStorage.getItem('codecity.locale')||'en';}catch{}
+  let saved='en';
+  try{
+    const requested=new URLSearchParams(location.search).get('lang');
+    saved=locales.includes(requested)?requested:(localStorage.getItem('codecity.locale')||'en');
+  }catch{}
   document.getElementById('ui-language').onchange=e=>setLocale(e.target.value);
   translate();
   setLocale(saved);

@@ -1,10 +1,33 @@
 {
   "name": "codecity",
   "displayName": "CodeCity 3D Viewer",
-  "description": "Explore codebases as interactive 3D code cities inside VS Code",
+  "description": "Explore any codebase as an interactive 3D code city inside VS Code. Classes and modules become buildings, folders become districts, and imports become streets — for JavaScript, TypeScript, Python, Java, C/C++, C#, Go, Rust, Qt and more.",
   "version": "0.4.0",
   "publisher": "Amin-Tgz",
-  "icon": "../../assets/codecity.svg",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Amin-Tgz/CodeCity.git"
+  },
+  "homepage": "https://github.com/Amin-Tgz/CodeCity#readme",
+  "bugs": {
+    "url": "https://github.com/Amin-Tgz/CodeCity/issues"
+  },
+  "keywords": [
+    "code visualization",
+    "3d",
+    "architecture",
+    "codebase",
+    "dependencies",
+    "city",
+    "tree-sitter",
+    "metrics"
+  ],
+  "galleryBanner": {
+    "color": "#101c2b",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -19,15 +42,38 @@
     "onCommand:codecity.openInBrowser"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codecity",
+          "title": "CodeCity",
+          "icon": "media/codecity-activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "codecity": [
+        {
+          "id": "codecity.home",
+          "name": "CodeCity",
+          "type": "webview",
+          "icon": "media/codecity-activity.svg"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "codecity.open",
-        "title": "CodeCity: Open 3D View",
+        "title": "Open 3D View",
+        "category": "CodeCity",
+        "description": "Analyze the current folder and open its 3D code city in a VS Code tab.",
         "icon": "$(globe)"
       },
       {
         "command": "codecity.openInBrowser",
-        "title": "CodeCity: Open in External Browser",
+        "title": "Open in External Browser",
+        "category": "CodeCity",
+        "description": "Analyze the current folder and open its 3D code city in your default browser.",
         "icon": "$(browser)"
       }
     ],
@@ -63,7 +109,36 @@
             "webview",
             "browser"
           ],
-          "description": "Where to open CodeCity: an integrated VS Code tab (webview) or an external browser window."
+          "enumDescriptions": [
+            "Open CodeCity in an integrated VS Code editor tab.",
+            "Open CodeCity in your default external web browser."
+          ],
+          "markdownDescription": "Where CodeCity opens. **VS Code tab** keeps the city inside the editor; **External browser** opens it in a separate window. You can also choose this each time from the CodeCity activity-bar view."
+        },
+        "codecity.language": {
+          "type": "string",
+          "default": "en",
+          "enum": [
+            "en",
+            "es",
+            "fr",
+            "de",
+            "zh",
+            "ja",
+            "ar",
+            "fa"
+          ],
+          "enumDescriptions": [
+            "English",
+            "Español (Spanish)",
+            "Français (French)",
+            "Deutsch (German)",
+            "中文 (Chinese)",
+            "日本語 (Japanese)",
+            "العربية (Arabic)",
+            "فارسی (Persian)"
+          ],
+          "markdownDescription": "Interface language for the CodeCity 3D view. The CodeCity activity-bar view lets you change it before opening."
         }
       }
     }

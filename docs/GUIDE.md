@@ -108,6 +108,21 @@ than 22.13, it downloads the **latest LTS** from nodejs.org, verifies SHA-256,
 and installs a private runtime for CodeCity. No administrator rights are
 required. Use `-NodeChannel current` on Windows or
 `CODECITY_NODE_CHANNEL=current` on Unix to choose latest Current instead.
+
+To remove a per-user installation, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall.ps1
+```
+
+```bash
+sh scripts/uninstall.sh
+```
+
+The uninstaller removes the `codecity`/`code-city` launchers, the installed
+app and private runtime, and the `PATH` entry. Pass `-InstallRoot` on Windows
+or set `XDG_DATA_HOME` on Unix to target a custom location; `-KeepPath` leaves
+the user `PATH` untouched.
 Node's [release policy](https://nodejs.org/en/about/previous-releases)
 recommends LTS releases for production use.
 
@@ -325,6 +340,7 @@ parser assets.
 - `src/`: city rendering, Simple/Advanced modes, and exploration controls.
 - `vendor/`, `assets/`: offline three.js and app artwork.
 - `scripts/install.ps1`, `scripts/install.sh`: Node-aware installers.
+- `scripts/uninstall.ps1`, `scripts/uninstall.sh`: remove a per-user installation.
 - `tests/`: Node unit tests and browser checks.
 
 ## Visual design

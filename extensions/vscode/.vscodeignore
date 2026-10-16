@@ -1,0 +1,3 @@
+# Ship the bundled runtime and icon even though runtime/ is git-ignored.
+!runtime/**
+!icon.png

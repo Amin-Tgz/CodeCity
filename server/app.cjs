@@ -34,16 +34,20 @@ function revealFolderCommand(folder, platform=process.platform) {
   if(platform==='darwin') return ['open',[folder]];
   return ['xdg-open',[folder]];
 }
+function editorCommand(bin, target, platform) {
+  if (platform !== 'win32') return [bin, ['-g', target]];
+  // Node refuses to spawn .cmd/.bat shims directly (EINVAL) since the CVE-2024-27980 fix.
+  // Route through the command interpreter; Node quotes the spaced path for us.
+  return [process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', bin, '-g', target]];
+}
 function openInEditorCommand(file, line = 1, editor = 'system', platform = process.platform) {
   if (/["\r\n]/.test(file)) throw Error('Invalid file path.');
   const normalized = platform === 'win32' ? path.win32.normalize(file) : file;
   if (editor === 'vscode') {
-    const bin = platform === 'win32' ? 'code.cmd' : 'code';
-    return [bin, ['-g', `${normalized}:${line}`]];
+    return editorCommand(platform === 'win32' ? 'code.cmd' : 'code', `${normalized}:${line}`, platform);
   }
   if (editor === 'cursor') {
-    const bin = platform === 'win32' ? 'cursor.cmd' : 'cursor';
-    return [bin, ['-g', `${normalized}:${line}`]];
+    return editorCommand(platform === 'win32' ? 'cursor.cmd' : 'cursor', `${normalized}:${line}`, platform);
   }
   if (platform === 'win32') {
     return [process.env.ComSpec || 'cmd.exe', ['/c', 'start', '""', `"${normalized}"`]];
@@ -173,7 +177,10 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
       const name=decodeURIComponent(url.pathname).replace(/^\//,'')||'index.html';
       if(!/^(index\.html|styles\.css|(?:src|vendor)\/[\w.-]+\.js|assets\/[\w.-]+\.svg)$/.test(name)) return json(404,{error:'Not found.'});
       const data=await fs.readFile(path.join(ASSET_ROOT,name));
-      res.writeHead(200,{'Content-Type':MIME[path.extname(name)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"frame-ancestors 'none'"});
+      // The app is embedded in the VS Code webview, whose document runs on the vscode-webview: scheme,
+      // so no frame-ancestors restriction is sent. Host validation, the same-origin check and the API
+      // token still protect the loopback server from other pages.
+      res.writeHead(200,{'Content-Type':MIME[path.extname(name)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
       res.end(req.method==='HEAD'?undefined:data);
     }catch(err){json(err.code==='ENOENT'?404:400,{error:err.code==='ENOENT'?'Folder or file no longer exists.':['EACCES','EPERM'].includes(err.code)?'Cannot access this folder. Choose a folder you have permission to read.':err.message});}
   });

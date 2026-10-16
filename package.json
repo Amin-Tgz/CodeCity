@@ -2,7 +2,12 @@
   "name": "codecity-viewer",
   "version": "0.4.0",
   "description": "Explore mixed-language projects as interactive 3D code cities",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Amin-Tgz/CodeCity.git"
+  },
   "bin": {
     "codecity": "server/cli.cjs",
     "code-city": "server/cli.cjs"
@@ -13,7 +18,10 @@
     "build:parsers": "node scripts/build-parsers.cjs",
     "benchmark": "node scripts/benchmark.mjs",
     "audit:project": "node scripts/audit-project.cjs",
-    "package:vscode": "cd extensions/vscode && npx @vscode/vsce package"
+    "icon:vscode": "node scripts/make-vscode-icon.mjs",
+    "package:vscode": "node scripts/bundle-vscode.cjs && cd extensions/vscode && npx @vscode/vsce package --githubBranch main --baseContentUrl https://github.com/Amin-Tgz/CodeCity/blob/main/extensions/vscode/ --baseImagesUrl https://raw.githubusercontent.com/Amin-Tgz/CodeCity/main/extensions/vscode/",
+    "uninstall:win": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/uninstall.ps1",
+    "uninstall:unix": "sh scripts/uninstall.sh"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -25,11 +33,14 @@
     "assets",
     "index.html",
     "styles.css",
+    "LICENSE",
     "README.md",
     "README.fa.md",
     "docs",
     "scripts/install.ps1",
-    "scripts/install.sh"
+    "scripts/install.sh",
+    "scripts/uninstall.ps1",
+    "scripts/uninstall.sh"
   ],
   "devDependencies": {
     "esbuild": "0.25.12",

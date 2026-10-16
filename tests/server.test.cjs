@@ -4,7 +4,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const os=require('node:os');
 const {scan,modelFromFiles,emptyModel}=require('../server/scanner.cjs');
-const {createApp,revealCommand,revealFolderCommand}=require('../server/app.cjs');
+const {createApp,revealCommand,revealFolderCommand,openInEditorCommand}=require('../server/app.cjs');
 const {readHistory,framesFromLog}=require('../server/history.cjs');
 const {execFileSync,spawnSync}=require('node:child_process');
 
@@ -86,6 +86,18 @@ test('file manager commands work on Windows and Linux without a shell',()=>{
   assert.throws(()=>revealFolderCommand('C:\\bad"name','win32'));
   assert.deepEqual(revealFolderCommand('/home/user/Project space','linux'),['xdg-open',['/home/user/Project space']]);
   assert.deepEqual(revealFolderCommand('/Users/user/Project space','darwin'),['open',['/Users/user/Project space']]);
+});
+test('editor commands wrap Windows .cmd shims through the interpreter and keep spaced paths',()=>{
+  const shell=process.env.ComSpec||'cmd.exe';
+  // Directly spawning code.cmd/cursor.cmd throws EINVAL on Windows, so they are wrapped in cmd.exe.
+  assert.deepEqual(openInEditorCommand('C:\\Project space\\file.ts',12,'vscode','win32'),[shell,['/d','/s','/c','code.cmd','-g','C:\\Project space\\file.ts:12']]);
+  assert.deepEqual(openInEditorCommand('C:\\Project space\\file.ts',7,'cursor','win32'),[shell,['/d','/s','/c','cursor.cmd','-g','C:\\Project space\\file.ts:7']]);
+  assert.deepEqual(openInEditorCommand('C:\\Project space\\file.ts',1,'vscode','win32'),[shell,['/d','/s','/c','code.cmd','-g','C:\\Project space\\file.ts:1']]);
+  // Non-Windows editors are spawned directly without a shell.
+  assert.deepEqual(openInEditorCommand('/home/user/file.ts',12,'vscode','linux'),['code',['-g','/home/user/file.ts:12']]);
+  assert.deepEqual(openInEditorCommand('/Users/user/file.ts',12,'cursor','darwin'),['cursor',['-g','/Users/user/file.ts:12']]);
+  assert.deepEqual(openInEditorCommand('/home/user/file.ts',12,'system','linux'),['xdg-open',['/home/user/file.ts']]);
+  assert.throws(()=>openInEditorCommand('bad"name.ts',1,'vscode','win32'));
 });
 test('project lifecycle persists recents, rejects cross-origin actions and reveals only project files',async t=>{
   const dir=await fs.mkdtemp(path.join(os.tmpdir(),'codecity-api-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));

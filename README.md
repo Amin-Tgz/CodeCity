@@ -84,8 +84,20 @@ sh scripts/install.sh
 ```
 
 The installers download and verify a compatible Node runtime when needed.
+To remove a per-user installation, run the matching uninstaller:
+
+```powershell
+# Windows
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall.ps1
+```
+
+```bash
+# macOS / Linux
+sh scripts/uninstall.sh
+```
+
 See the [guide](docs/GUIDE.md) for remote installation, launcher options,
-controls, exclusions, metric rules, and analysis limits.
+uninstall options, controls, exclusions, metric rules, and analysis limits.
 
 ## Development and documentation
 
