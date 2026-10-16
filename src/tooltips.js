@@ -1,6 +1,7 @@
 // Keep tooltip source keys separate from translated labels and dynamic names.
 const controls={
   'project-menu-btn':'Open, reopen, exclude parts of, or close a project.',
+  'open-project-folder':'Locate the project folder in your file manager.',
   'project-open':'Choose a source folder and build its code city.',
   'empty-open':'Choose a source folder and build its code city.',
   'folder-submit':'Choose a source folder and build its code city.',

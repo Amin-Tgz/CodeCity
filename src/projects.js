@@ -61,9 +61,23 @@ export async function initProjects(onModel) {
     if(working)return;
     try{const data=await request('project/close',{});await onModel(data.model);session.root='';setMenu(false);}catch(e){status.textContent=e.message;}
   };
+  const revealFolderBtn = document.getElementById('open-project-folder');
+  if (revealFolderBtn) {
+    revealFolderBtn.onclick = async () => {
+      revealFolderBtn.disabled = true;
+      try {
+        await revealProject();
+      } catch (e) {
+        status.textContent = e.message;
+      } finally {
+        revealFolderBtn.disabled = false;
+      }
+    };
+  }
   window.addEventListener('languagechange',renderRecent);
   renderRecent();translate();
   return session;
 }
 export async function revealFile(file) {return request('reveal',{file});}
+export async function revealProject() {return request('reveal-project',{});}
 export function canReveal() {return !!session?.canReveal;}

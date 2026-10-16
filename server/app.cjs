@@ -13,7 +13,7 @@ const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=u
 function launch(command,args) {
   return new Promise((resolve,reject)=>{
     const explorer=process.platform==='win32'&&path.win32.basename(command).toLowerCase()==='explorer.exe';
-    const child=spawn(command,args,{stdio:'ignore',detached:true,windowsHide:true,windowsVerbatimArguments:explorer});
+    const child=spawn(command,args,{stdio:'ignore',detached:true,windowsHide:false,windowsVerbatimArguments:explorer});
     child.once('error',reject);
     child.once('spawn',()=>{child.unref();resolve();});
   });
@@ -26,12 +26,37 @@ function revealCommand(file, platform=process.platform) {
   if(platform==='darwin') return ['open',['-R',file]];
   return ['xdg-open',[path.dirname(file)]];
 }
+function revealFolderCommand(folder, platform=process.platform) {
+  if(platform==='win32') {
+    if(/["\r\n]/.test(folder))throw Error('Invalid folder path.');
+    return [path.win32.join(process.env.SystemRoot||'C:\\Windows','explorer.exe'),[`"${path.win32.normalize(folder)}"`]];
+  }
+  if(platform==='darwin') return ['open',[folder]];
+  return ['xdg-open',[folder]];
+}
+function openInEditorCommand(file, line = 1, editor = 'system', platform = process.platform) {
+  if (/["\r\n]/.test(file)) throw Error('Invalid file path.');
+  const normalized = platform === 'win32' ? path.win32.normalize(file) : file;
+  if (editor === 'vscode') {
+    const bin = platform === 'win32' ? 'code.cmd' : 'code';
+    return [bin, ['-g', `${normalized}:${line}`]];
+  }
+  if (editor === 'cursor') {
+    const bin = platform === 'win32' ? 'cursor.cmd' : 'cursor';
+    return [bin, ['-g', `${normalized}:${line}`]];
+  }
+  if (platform === 'win32') {
+    return [process.env.ComSpec || 'cmd.exe', ['/c', 'start', '""', `"${normalized}"`]];
+  }
+  if (platform === 'darwin') return ['open', [normalized]];
+  return ['xdg-open', [normalized]];
+}
 async function readBody(req) {
   const chunks=[];let bytes=0;
   for await(const chunk of req) {bytes+=chunk.length;if(bytes>131072) throw Error('Request too large.');chunks.push(chunk);}
   return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');
 }
-function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','recent.json'),profileFile=path.join(path.dirname(stateFile),'profile.json'),reveal=launch}={}) {
+function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','recent.json'),profileFile=path.join(path.dirname(stateFile),'profile.json'),reveal=launch,editorLaunch=reveal}={}) {
   const token=crypto.randomBytes(32).toString('hex');
   let model=emptyModel(),recent=[],busy=false,exclusionsByRoot={};
   const exclusionsFile=stateFile+'.exclusions.json';
@@ -119,12 +144,28 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
           try{const next=await runAnalysis('scan',project,undefined,{exclusions:rules});model=next;exclusionsByRoot[project]=rules;projectEpoch++;snapshots.clear();await saveExclusions();return json(200,{model});}finally{busy=false;}
         }
         if(url.pathname==='/api/project/close') {if(busy) return json(409,{error:'Please wait for the scan.'});model=emptyModel();projectEpoch++;snapshots.clear();return json(200,{model});}
+        if(url.pathname==='/api/reveal-project') {
+          if(!model.meta.root) return json(400,{error:'No project is currently open.'});
+          const dir=await fs.realpath(path.resolve(model.meta.root));
+          await reveal(...revealFolderCommand(dir));return json(200,{ok:true});
+        }
         if(url.pathname==='/api/reveal') {
-          if(!model.meta.root||typeof body.file!=='string'||!model.buildings.some(b=>b.file===body.file)) return json(400,{error:'Select a file from the open project.'});
-          const file=await fs.realpath(path.resolve(model.meta.root,body.file));
+          const match=model.buildings.find(b=>b.file===body.file||b.file.replaceAll('\\','/')===(body.file||'').replaceAll('\\','/'));
+          if(!model.meta.root||typeof body.file!=='string'||!match) return json(400,{error:'Select a file from the open project.'});
+          const file=await fs.realpath(path.resolve(model.meta.root,match.file));
           const relative=path.relative(model.meta.root,file);
           if(relative.startsWith('..')||path.isAbsolute(relative)) return json(403,{error:'File is outside the project.'});
           await reveal(...revealCommand(file));return json(200,{ok:true});
+        }
+        if(url.pathname==='/api/editor/open') {
+          const match=model.buildings.find(b=>b.file===body.file||b.file.replaceAll('\\','/')===(body.file||'').replaceAll('\\','/'));
+          if(!model.meta.root||typeof body.file!=='string'||!match) return json(400,{error:'Select a file from the open project.'});
+          const file=await fs.realpath(path.resolve(model.meta.root,match.file));
+          const relative=path.relative(model.meta.root,file);
+          if(relative.startsWith('..')||path.isAbsolute(relative)) return json(403,{error:'File is outside the project.'});
+          const line=Number.isInteger(body.line)?body.line:1;
+          const editor=typeof body.editor==='string'?body.editor:'system';
+          await editorLaunch(...openInEditorCommand(file,line,editor));return json(200,{ok:true});
         }
         return json(404,{error:'Unknown action.'});
       }
@@ -138,4 +179,4 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
   });
   return {server,ready};
 }
-module.exports={createApp,revealCommand,launch};
+module.exports={createApp,revealCommand,revealFolderCommand,openInEditorCommand,launch};

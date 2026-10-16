@@ -4,7 +4,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const os=require('node:os');
 const {scan,modelFromFiles,emptyModel}=require('../server/scanner.cjs');
-const {createApp,revealCommand}=require('../server/app.cjs');
+const {createApp,revealCommand,revealFolderCommand}=require('../server/app.cjs');
 const {readHistory,framesFromLog}=require('../server/history.cjs');
 const {execFileSync,spawnSync}=require('node:child_process');
 
@@ -79,6 +79,13 @@ test('file manager commands work on Windows and Linux without a shell',()=>{
   assert.throws(()=>revealCommand('C:\\bad"name.cpp','win32'));
   assert.deepEqual(revealCommand('/home/user/Project space/file.cpp','linux'),['xdg-open',['/home/user/Project space']]);
   assert.deepEqual(revealCommand('/Users/user/file.cpp','darwin'),['open',['-R','/Users/user/file.cpp']]);
+
+  const folderCmd=revealFolderCommand('C:\\Project space','win32');
+  assert.equal(path.win32.basename(folderCmd[0]).toLowerCase(),'explorer.exe');
+  assert.deepEqual(folderCmd[1],['"C:\\Project space"']);
+  assert.throws(()=>revealFolderCommand('C:\\bad"name','win32'));
+  assert.deepEqual(revealFolderCommand('/home/user/Project space','linux'),['xdg-open',['/home/user/Project space']]);
+  assert.deepEqual(revealFolderCommand('/Users/user/Project space','darwin'),['open',['/Users/user/Project space']]);
 });
 test('project lifecycle persists recents, rejects cross-origin actions and reveals only project files',async t=>{
   const dir=await fs.mkdtemp(path.join(os.tmpdir(),'codecity-api-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
@@ -94,13 +101,16 @@ test('project lifecycle persists recents, rejects cross-origin actions and revea
   assert.equal((await post('project/open',{path:root},{'X-CodeCity-Token':'wrong'})).status,403);
   assert.equal((await fetch(base+'/server/app.cjs')).status,404);
   assert.equal((await fetch(base+'/.git/config')).status,404);
+  assert.equal((await post('reveal-project',{})).status,400);
   res=await post('project/open',{path:root});assert.equal(res.status,200);const opened=await res.json();assert.equal(opened.model.buildings.length,1);
   assert.equal((await post('project/open',{path:path.join(root,'missing')})).status,404);
   assert.equal((await(await fetch(base+'/city.json')).json()).buildings.length,1);
   assert.equal((await post('reveal',{file:'../outside.py'})).status,400);
   assert.equal((await post('reveal',{file:'entry.py'})).status,200);assert.equal(revealed.length,1);
+  assert.equal((await post('reveal-project',{})).status,200);assert.equal(revealed.length,2);
   const folders=await(await fetch(base+'/api/folders?path='+encodeURIComponent(dir),{headers:{'X-CodeCity-Token':session.token}})).json();assert.ok(folders.folders.some(f=>f.name==='project'));
   res=await post('project/close',{});assert.equal((await res.json()).model.buildings.length,0);
   assert.equal((await post('reveal',{file:'entry.py'})).status,400);
+  assert.equal((await post('reveal-project',{})).status,400);
   assert.deepEqual(JSON.parse(await fs.readFile(stateFile,'utf8')),[opened.model.meta.root]);
 });
