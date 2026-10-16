@@ -1,0 +1,71 @@
+{
+  "name": "codecity",
+  "displayName": "CodeCity 3D Viewer",
+  "description": "Explore codebases as interactive 3D code cities inside VS Code",
+  "version": "0.4.0",
+  "publisher": "Amin-Tgz",
+  "icon": "../../assets/codecity.svg",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Education",
+    "Other"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onCommand:codecity.open",
+    "onCommand:codecity.openInBrowser"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codecity.open",
+        "title": "CodeCity: Open 3D View",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "codecity.openInBrowser",
+        "title": "CodeCity: Open in External Browser",
+        "icon": "$(browser)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "codecity.open"
+        },
+        {
+          "command": "codecity.openInBrowser"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "codecity.open",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "codecity.open",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodeCity",
+      "properties": {
+        "codecity.target": {
+          "type": "string",
+          "default": "webview",
+          "enum": [
+            "webview",
+            "browser"
+          ],
+          "description": "Where to open CodeCity: an integrated VS Code tab (webview) or an external browser window."
+        }
+      }
+    }
+  }
+}
