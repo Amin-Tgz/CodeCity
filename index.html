@@ -39,6 +39,7 @@
       <button id="history-toggle" class="mini-btn" hidden>Build history</button>
       <button id="auto-hide-panels" class="mini-btn" data-advanced hidden aria-pressed="false" title="Auto-hide panels">Auto-hide</button>
       <button id="project-menu-btn" class="mini-btn" aria-expanded="false" aria-controls="project-menu">Project</button>
+      <button id="open-project-folder" class="mini-btn" hidden title="Open project folder in file manager" aria-label="Open project folder in file manager">📁 Open folder</button>
       <select id="ui-language" aria-label="Interface language">
         <option value="en">English</option><option value="es">Español</option>
         <option value="fr">Français</option><option value="de">Deutsch</option>
@@ -152,9 +153,6 @@
     </div>
 
     <div data-advanced hidden class="advanced-controls">
-    <div class="panel-title">Investigate</div>
-    <div id="investigations"></div>
-    <details id="shared-connections"></details>
     <details><summary>Package minimap</summary><div id="minimap"></div></details>
     </div>
     <div class="panel-title">Layers</div>

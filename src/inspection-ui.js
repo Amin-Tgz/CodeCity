@@ -1,15 +1,44 @@
 import {request} from './projects.js';
 import {excludePart} from './exclusions.js';
-import {editorLink,graphIndex,PRESETS,rankCandidates} from './investigation.js';
+import {editorLink,graphIndex} from './investigation.js';
 import {t} from './i18n.js';
 import {drawRelationshipDiagram} from './relationship-diagram.js';
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n;};
 export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   const graph=city.graph||(city.graph=graphIndex(city.model));
+  const crumbSection=el('div',null,'package-crumbs-section');
+  const crumbTitle=el('div',t('District filter'),'package-crumbs-title');
+  const crumbHint=el('p',t('Click a folder level to filter the 3D city to that district, or click again to restore all buildings.'),'package-crumbs-hint');
   const crumb=el('nav',null,'package-crumbs');crumb.setAttribute('aria-label','Package breadcrumbs');
   const pieces=b.district==='.'?[]:b.district.split('/');
-  for(let i=0;i<=pieces.length;i++){const id=i?pieces.slice(0,i).join('/'):'',button=el('button',i?pieces[i-1]:'Project','mini-btn');button.onclick=()=>{city.applyFilter(id);document.getElementById('filter').value=id;};crumb.append(button);}
-  host.prepend(crumb);
+  const buttons=[];
+  const updateActive=()=>{
+    const current=city.filterId;
+    for(const item of buttons){
+      const isActive=(current===item.id)||(item.id===''&&current===null);
+      item.button.classList.toggle('active',isActive);
+      item.button.setAttribute('aria-pressed',String(isActive));
+    }
+  };
+  for(let i=0;i<=pieces.length;i++){
+    const id=i?pieces.slice(0,i).join('/'):'';
+    const button=el('button',i?pieces[i-1]:'Project','mini-btn');
+    button.onclick=()=>{
+      if(city.filterId===id||(id===''&&city.filterId===null)){
+        city.applyFilter(null);
+        const f=document.getElementById('filter');if(f)f.value='';
+      } else {
+        city.applyFilter(id);
+        const f=document.getElementById('filter');if(f)f.value=id;
+      }
+      updateActive();
+    };
+    buttons.push({id,button});
+    crumb.append(button);
+  }
+  updateActive();
+  crumbSection.append(crumbTitle,crumbHint,crumb);
+  host.prepend(crumbSection);
   drawRelationshipDiagram(host,b,city,onSelect);
   if(city.model.meta.source==='scan'&&!city.model.meta.commit&&!city.model.meta.comparisonSources) {
     const actions=el('div',null,'query-actions'),button=el('button',t('Exclude this building'),'mini-btn'),error=el('p','','muted-note');error.setAttribute('role','alert');
@@ -27,31 +56,39 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
   for(const note of a.limitations||[])evidence.append(el('p',note,'muted-note'));
   for(const d of a.diagnostics||[])evidence.append(el('p',`Line ${d.line}: ${d.message}`,'muted-note'));
   host.append(evidence);
-  const preview=el('section',null,'source-section'),show=el('button','Preview source','mini-btn'),status=el('p','','muted-note'),code=el('pre',null,'source-preview');code.dir='ltr';code.tabIndex=0;code.setAttribute('aria-label','Source preview');
-  const editor=el('a','Open selected lines in editor','mini-btn');editor.hidden=true;
-  const setting=el('details'),settingTitle=el('summary','Editor link settings'),input=el('input');input.type='text';input.setAttribute('aria-label','Editor URL template');input.placeholder='vscode://file/{path}:{line}';
-  setting.dataset.advanced='';
-  try{input.value=localStorage.getItem('codecity.editor')||'vscode://file/{path}:{line}';}catch{input.value='vscode://file/{path}:{line}';}
-  setting.append(settingTitle,input,el('p','Placeholders: {path}, {line}, {end}.','muted-note'));preview.append(show,status,editor,code,setting);host.append(preview);
-  let current=null,serial=0,previewOpen=false;
-  code.hidden=true;status.hidden=true;show.setAttribute('aria-expanded','false');
-  const setPreview=open=>{previewOpen=open;code.hidden=!open;status.hidden=!open;show.textContent=t(open?'Close source preview':'Preview source');show.setAttribute('aria-expanded',String(open));if(!open){serial++;current=null;code.replaceChildren();status.textContent='';editor.hidden=true;}};
-  const updateEditor=()=>{if(!current)return;try{if(city.model.meta.commit||b.comparison_status==='removed'){editor.hidden=true;return;}editor.href=editorLink(input.value,current.path,current.start,current.end);editor.hidden=false;try{localStorage.setItem('codecity.editor',input.value);}catch{}}catch(e){editor.hidden=true;status.textContent=e.message;}};
-  input.onchange=updateEditor;
-  const source=async member=>{
-    setPreview(true);
-    const seq=++serial;status.textContent='Loading source…';code.replaceChildren();editor.hidden=true;
-    try {
-      let data;
-      const historical=(city.model.meta.snapshotSources|| (b.comparison_status==='removed'?city.model.meta.comparisonSources:null))?.[b.file];
-      if(historical!=null){const m=member!=null?b.members[member]:null,start=m?.line||b.start_line,end=m?.end_line||b.end_line,from=Math.max(1,start-3),lines=historical.split(/\r?\n/);data={path:city.model.meta.root.replace(/[\\/]$/,'')+'/'+b.file,start,end,from,lines:lines.slice(from-1,Math.min(end+3,from+399)),truncated:end>from+399};}
-      else data=await request('source',{id:b.id,...(member!=null?{member}:{})});if(seq!==serial||!host.isConnected)return;current=data;
-      status.textContent=data.stale?'Source changed since scanning; rescan before trusting the highlighted range.':`Lines ${data.start}–${data.end}${data.truncated?' · preview limited to 400 lines':''}`;
-      data.lines.forEach((text,i)=>{const line=data.from+i,row=el('span',`${String(line).padStart(4)}  ${text}\n`,line>=data.start&&line<=data.end?'source-line selected-line':'source-line');row.dataset.line=String(line);code.append(row);});
-      updateEditor();code.querySelector('.selected-line')?.scrollIntoView({block:'nearest'});
-    }catch(e){if(seq===serial)status.textContent=e.message;}
+  const editorSection=el('section',null,'editor-section query-actions');
+  const openEditorBtn=el('button',t('Open in editor'),'mini-btn');
+  openEditorBtn.id='details-open-editor';
+  const editorSelect=el('select',null,'mini-btn');
+  editorSelect.id='details-editor-select';
+  editorSelect.setAttribute('aria-label',t('Choose editor'));
+  for(const [val,label] of [['vscode','VS Code'],['cursor','Cursor'],['system','System Default']]){
+    const opt=new Option(t(label),val);
+    editorSelect.append(opt);
+  }
+  try{editorSelect.value=localStorage.getItem('codecity.editor_choice')||'vscode';}catch{}
+  editorSelect.onchange=()=>{try{localStorage.setItem('codecity.editor_choice',editorSelect.value);}catch{}};
+  const editorStatus=el('p','','muted-note');
+  editorStatus.id='details-editor-status';
+  const doOpen=async(lineNum)=>{
+    openEditorBtn.disabled=true;editorStatus.textContent=t('Opening in editor…');
+    try{
+      await request('editor/open',{file:b.file,line:lineNum||b.start_line||1,editor:editorSelect.value});
+      editorStatus.textContent=t('Opened in editor.');
+    }catch(err){
+      editorStatus.textContent=err.message;
+    }finally{
+      openEditorBtn.disabled=false;
+    }
   };
-  show.onclick=()=>previewOpen?setPreview(false):source();host.querySelectorAll('.member-row').forEach(button=>button.addEventListener('click',()=>source(Number(button.dataset.mi))));
+  openEditorBtn.onclick=()=>doOpen(b.start_line);
+  host.querySelectorAll('.member-row').forEach(button=>button.addEventListener('click',()=>{
+    const mi=Number(button.dataset.mi);
+    const m=b.members?.[mi];
+    if(m?.line)doOpen(m.line);
+  }));
+  editorSection.append(openEditorBtn,editorSelect,editorStatus);
+  host.append(editorSection);
   const deps=el('details');deps.open=true;deps.append(el('summary',t('Dependencies and cycles')));
   const cycle=graph.components.get(b.id);deps.append(el('p',cycle?t('Mutually reachable: {names}. This list is not a cycle path.',{names:cycle.map(id=>graph.byId.get(id).name).join(' → ')}):t('No directed cycle in the available graph.'),'muted-note'));
   if(!graph.incoming.get(b.id).length&&!graph.outgoing.get(b.id).length)deps.append(el('p',t('No connection was identified in the project analysis. This does not prove independence.'),'muted-note'));
@@ -61,33 +98,6 @@ export function attachInspector(host,b,{city,onSelect=()=>{}}={}) {
       for(const e of r.evidence||[])deps.append(el('p',e.file?`${e.file}${e.line?':'+e.line:''} · ${e.symbol||e.ref||''}${e.alias?' as '+e.alias:''}${e.description?' · '+e.description:''}`:e.description,'muted-note'));}
   }
   host.append(deps);
-}
-
-export function initInvestigations(model,city,onSelect) {
-  const host=document.getElementById('investigations');if(!host)return;
-  const previous=[...host.querySelectorAll('select')].map(s=>s.value);
-  host.replaceChildren();const select=el('select'),sort=el('select'),note=el('p','','muted-note'),results=el('div',null,'investigation-results');
-  select.setAttribute('aria-label',t('Investigation preset'));sort.setAttribute('aria-label',t('Sort investigation results'));
-  select.append(new Option(t('Choose an investigation'),''));for(const [key,p] of Object.entries(PRESETS)){const option=new Option(t(p.label),key);option.title=t(p.explain);select.append(option);}
-  for(const [key,label] of [['loc','Lines'],['fanOut','Fan-out'],['complexity','Complexity'],['churn','Churn']]){const option=new Option(t(label),key);option.title=t('Sort '+key);sort.append(option);}
-  const draw=()=>{const p=PRESETS[select.value];note.textContent=t(p?.explain||'Evidence-based candidates for review. Generated code is excluded.');select.title=note.textContent;sort.title=t('Sort '+sort.value);results.replaceChildren();city.highlightSubset(null);if(!p)return;
-    const rows=rankCandidates(model,select.value,sort.value,city.graph);city.highlightSubset(rows.map(b=>b.id));results.append(el('p',t('{n} candidates',{n:rows.length}),'muted-note'));
-    for(const b of rows.slice(0,300)){const button=el('button',`${b.name} · LOC ${b.loc} · ${t('Fan-out')} ${b.fanOut} · ${t('Complexity')} ${b.complexity??'?'} · ${t('Churn')} ${b.churn??'?'}`,'member-row');button.title=t('Select this building and inspect its details.');button.onclick=()=>onSelect(b);results.append(button);}
-    if(rows.length>300)results.append(el('p',t('Showing the first 300 candidates. Change sorting to explore other results.'),'muted-note'));
-  };
-  select.onchange=()=>{sort.value=PRESETS[select.value]?.sort||'loc';draw();};sort.onchange=draw;
-  host.append(select,sort,note,results);if(previous[0])select.value=previous[0];if(previous[1])sort.value=previous[1];draw();
-}
-
-export function renderSharedConnections(city,onSelect) {
-  const host=document.getElementById('shared-connections');if(!host)return;
-  host.replaceChildren();
-  const heading=el('summary',t('Shared connections'));host.append(heading);
-  host.append(el('p',t('Select a building to highlight its neighbors and explore the dependency map.'),'muted-note'));
-  for(const path of city.street?.paths||[])if(path.shared){
-    const button=el('button',`${path.from} → ${path.to} · ${t('{n} connections · weight {weight}',{n:path.edges.length,weight:path.weight})}`,'member-row');
-    button.title=t('Inspect the connections represented by this route.');button.onclick=()=>onSelect(path);host.append(button);
-  }
 }
 
 export function drawMinimap(city,onSelect) {

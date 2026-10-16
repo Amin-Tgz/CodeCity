@@ -18,7 +18,9 @@ export function drawRelationshipDiagram(host, building, city, onSelect) {
   if(self.length){const note=document.createElement('p');note.className='muted-note';note.textContent=t('Self connections: {n}',{n:self.length});section.append(note);}
   if(!neighbors.size){note.textContent=t(self.length?'Self connections: {n}':'No connection was identified in the project analysis. This does not prove independence.',{n:self.length});}
   let limit=6;
+  const actions=document.createElement('div');actions.className='relationship-actions query-actions';
   const more=document.createElement('button');more.type='button';more.className='mini-btn';
+  const less=document.createElement('button');less.type='button';less.className='mini-btn';less.textContent=t('Show less');
   const ns='http://www.w3.org/2000/svg';
   const element=(tag,attrs={})=>{const n=document.createElementNS(ns,tag);for(const [key,value]of Object.entries(attrs))n.setAttribute(key,value);return n;};
   const draw=()=>{
@@ -48,6 +50,11 @@ export function drawRelationshipDiagram(host, building, city, onSelect) {
     node(building.id,165,cy,'selected');canvas.append(svg);
     const remaining=Math.max(0,incoming.length-limit)+Math.max(0,outgoing.length-limit);
     more.hidden=!remaining;more.textContent=t('Show more ({n} remaining)',{n:remaining});
+    less.hidden=limit<=6;
   };
-  more.onclick=()=>{limit+=6;draw();};section.append(more);draw();host.prepend(section);
+  more.onclick=()=>{limit+=6;draw();};
+  less.onclick=()=>{limit=Math.max(6,limit-6);draw();};
+  actions.append(more,less);
+  section.append(actions);
+  draw();host.prepend(section);
 }

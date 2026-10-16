@@ -4,12 +4,14 @@ export async function runImprovementChecks() {
   const results=[],assert=(ok,message)=>{if(!ok)throw Error(message);};
   const check=async(name,run)=>{try{results.push({name,passed:true,...await run()});}catch(e){results.push({name,passed:false,error:e.message});}};
   const actual=window.__codecity;
-  await check('2. Member source highlights its range and metrics open their evidence',async()=>{
+  await check('2. Member source opens in editor and metrics open their evidence',async()=>{
     const b=actual.model.buildings.find(b=>b.members?.some(m=>m.kind==='method'));assert(b,'fixture has no method');
     document.getElementById('list-btn').click();const f=document.getElementById('list-filter');f.value=b.name;f.dispatchEvent(new Event('input'));[...document.querySelectorAll('.list-row')].find(row=>row.dataset.id===b.id).click();document.getElementById('list-close').click();
+    assert(document.getElementById('details-open-editor'),'open in editor button missing');
+    assert(document.getElementById('details-editor-select'),'editor select missing');
     const i=b.members.findIndex(m=>m.kind==='method');document.querySelector(`.member-list [data-mi="${i}"]`).click();
-    for(let n=0;n<30&&!document.querySelector('.selected-line');n++)await new Promise(r=>setTimeout(r,100));
-    assert(Number(document.querySelector('.selected-line')?.dataset.line)===b.members[i].line,'member highlight starts at wrong line');
+    await new Promise(r=>setTimeout(r,50));
+    assert(document.getElementById('details-editor-status'),'editor status element missing');
     document.querySelector('.metric-explain[data-metric="nom"]').click();assert(document.querySelector('.metric-evidence').open,'metric evidence stayed closed');document.getElementById('details-close').click();
   });
   await check('3. Recolouring preserves meshes, positions, routes and selected/filter state',()=>{

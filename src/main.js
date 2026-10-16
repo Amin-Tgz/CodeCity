@@ -11,7 +11,7 @@ import { initA11y } from './accessible.js';
 import { initI18n, t, translate } from './i18n.js';
 import { initProjects } from './projects.js';
 import { initPanels, initAutoHide, setSelectionPanelState } from './panels.js';
-import {initInvestigations,drawMinimap,renderSharedConnections} from './inspection-ui.js';
+import {drawMinimap} from './inspection-ui.js';
 import {graphIndex} from './investigation.js';
 import {initMode} from './mode.js';
 import {initProfile} from './profile.js';
@@ -152,8 +152,6 @@ function wireUI(model) {
   const simpleMode=()=>{
     if(document.documentElement.dataset.mode!=='simple')return;
     document.getElementById('filter').value='';city.applyFilter(null);
-    const preset=document.querySelector('#investigations select');
-    if(preset?.value){preset.value='';preset.dispatchEvent(new Event('change'));}
   };
   if(wireUI.modeListener)window.removeEventListener('modechange',wireUI.modeListener);
   wireUI.modeListener=simpleMode;window.addEventListener('modechange',simpleMode);
@@ -169,8 +167,7 @@ function wireUI(model) {
   UI.renderLegend(selC.value, model, city.mapping);
   applyMapping();
   city.graph=graphIndex(model);
-  initInvestigations(model,city,focusBuilding);drawMinimap(city,focusBuilding);
-  renderSharedConnections(city,showConnection);
+  drawMinimap(city,focusBuilding);
 }
 
 // --- help tab -------------------------------------------------------------
@@ -181,8 +178,10 @@ function initHelp() {
   window.addEventListener('languagechange',()=>renderHelp(body));
   const isOpen = () => help.classList.contains('open');
   let previousFocus = null;
+  let openedAt = 0;
   const setOpen = (v) => {
     if (v === isOpen()) return;
+    if (v) openedAt = Date.now();
     help.classList.toggle('open', v);
     for (const el of document.body.children) if (el !== help && el.tagName !== 'SCRIPT') el.inert = v;
     document.getElementById('help-btn').setAttribute('aria-expanded', String(v));
@@ -192,7 +191,7 @@ function initHelp() {
 
   document.getElementById('help-btn').onclick = () => setOpen(!isOpen());
   document.getElementById('help-close').onclick = () => setOpen(false);
-  help.addEventListener('click', (e) => { if (e.target === help) setOpen(false); });
+  help.addEventListener('click', (e) => { if (e.target === help && Date.now() - openedAt > 200) setOpen(false); });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') setOpen(false);
     if (e.key === 'Tab' && isOpen()) {
@@ -225,7 +224,7 @@ function showConnection(path) {
   city.highlightSubset(path.edges.flatMap(e=>[e.a,e.b]));setSelectionPanelState(true);
   UI.renderConnectionDetails(path,{city,onSelect:focusBuilding,onClose:()=>{city.highlightSubset(null);showDetails(null);}});updateHudOffset();
 }
-window.addEventListener('streetsready',event=>{renderDirty=true;if(city?.street===event.detail){UI.renderRoadStats(city);renderSharedConnections(city,showConnection);if(activeBuilding)showDetails(activeBuilding);}});
+window.addEventListener('streetsready',event=>{renderDirty=true;if(city?.street===event.detail){UI.renderRoadStats(city);if(activeBuilding)showDetails(activeBuilding);}});
 window.addEventListener('routingerror',()=>{document.getElementById('project-status').textContent=t('Ground routing is unavailable. Connections remain available in the dependency map.');});
 window.addEventListener('exploreopen',()=>{showDetails(null);city?.select(null);});
 
@@ -301,6 +300,8 @@ async function loadModel(model) {
   document.getElementById('citylist').classList.remove('open');
   document.getElementById('empty-city').hidden = !!model.meta.root;
   document.body.classList.toggle('has-project',!!model.meta.root);
+  const openFolderBtn = document.getElementById('open-project-folder');
+  if (openFolderBtn) openFolderBtn.hidden = !model.meta.root;
   wireUI(model); initPanels(); resetView(); controls.update(); translate();
   UI.setLoading(null);
   window.dispatchEvent(new CustomEvent('codecitymodelchange',{detail:model}));
@@ -330,7 +331,6 @@ async function boot() {
     if (!city) return;
     UI.renderStats(city.model); UI.renderRoadStats(city);
     UI.renderLegend(city.mapping.color, city.model, city.mapping);
-    initInvestigations(city.model,city,focusBuilding);renderSharedConnections(city,showConnection);
     if(activeConnection){showConnection(activeConnection);return;}
     showDetails(activeBuilding);
     updateHudOffset();
