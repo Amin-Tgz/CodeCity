@@ -73,7 +73,7 @@ npm start -- --root /path/to/project
 code --install-extension Amin-Tz.codecity
 ```
 
-اگر بستهٔ آفلاین می‌خواهید، فایل `codecity-0.4.0.vsix` را از
+اگر بستهٔ آفلاین می‌خواهید، فایل `codecity-0.4.1.vsix` را از
 [GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases) دانلود کنید،
 `Ctrl+Shift+P` را بزنید، `Extensions: Install from VSIX...` را انتخاب کرده و
 فایل را برگزینید.

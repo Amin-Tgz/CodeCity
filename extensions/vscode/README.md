@@ -46,7 +46,7 @@ search for it in the Extensions view (`Ctrl+Shift+X`), or run:
 code --install-extension Amin-Tz.codecity
 ```
 
-To install an offline build, download `codecity-0.4.0.vsix` from
+To install an offline build, download `codecity-0.4.1.vsix` from
 [GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases) and use
 **Extensions: Install from VSIX...**.
 

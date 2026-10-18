@@ -70,7 +70,7 @@ To try the package locally before publishing:
 
 ```bash
 npm pack
-npx --yes --package ./codecity-viewer-0.4.0.tgz codecity
+npx --yes --package ./codecity-viewer-0.4.1.tgz codecity
 ```
 
 The launcher opens your browser, prints its URL, and chooses a free port if
@@ -348,7 +348,7 @@ Extensions view (`Ctrl+Shift+X`), or use the command line:
 code --install-extension Amin-Tz.codecity
 ```
 
-To install an offline build instead, download `codecity-0.4.0.vsix` from
+To install an offline build instead, download `codecity-0.4.1.vsix` from
 [GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases), press
 `Ctrl+Shift+P`, choose **Extensions: Install from VSIX...**, and select it.
 

@@ -77,7 +77,7 @@ You can also install from the command line:
 code --install-extension Amin-Tz.codecity
 ```
 
-Prefer an offline package? Download `codecity-0.4.0.vsix` from
+Prefer an offline package? Download `codecity-0.4.1.vsix` from
 [GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases), press
 `Ctrl+Shift+P`, choose `Extensions: Install from VSIX...`, and select it.
 
