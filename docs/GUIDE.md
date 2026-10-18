@@ -334,10 +334,52 @@ these assets and the analysis-worker bundle during development. The
 is used with a virtual source host; bundled license notices accompany all
 parser assets.
 
+## VS Code extension
+
+The CodeCity 3D Viewer extension brings the same 3D city into Visual Studio
+Code and is published on the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity).
+
+Install it from the Marketplace page, search **CodeCity 3D Viewer** in the
+Extensions view (`Ctrl+Shift+X`), or use the command line:
+
+```bash
+code --install-extension Amin-Tz.codecity
+```
+
+To install an offline build instead, download `codecity-0.4.0.vsix` from
+[GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases), press
+`Ctrl+Shift+P`, choose **Extensions: Install from VSIX...**, and select it.
+
+Once installed, open a folder and either:
+
+- click the **CodeCity** icon in the Activity Bar and choose a language and
+  open target, or
+- press `Ctrl+Shift+P` and run **CodeCity: Open 3D View** (or
+  **CodeCity: Open in External Browser**), or
+- right-click a folder in the File Explorer, or use the `$(globe) CodeCity`
+  status bar item.
+
+The extension bundles its own analysis runtime, so no separate Node install is
+required. It listens on `127.0.0.1` only, performs a read-only scan, and stops
+the server when the extension deactivates or VS Code closes. Settings:
+
+| Setting | Default | Values |
+| --- | --- | --- |
+| `codecity.target` | `webview` | `webview`, `browser` |
+| `codecity.language` | `en` | `en`, `es`, `fr`, `de`, `zh`, `ja`, `ar`, `fa` |
+
+Requires VS Code 1.85.0 or newer. See the
+[extension README](../extensions/vscode/README.md) for commands, activation
+events, troubleshooting, and uninstall steps. The extension sources and the
+`vsce` packaging scripts (`npm run package:vscode`, `npm run publish:vscode`)
+live under `extensions/vscode/`.
+
 ## Project structure
 
 - `server/`: Node launcher, local API, source analysis workers, and bundled parsers.
 - `src/`: city rendering, Simple/Advanced modes, and exploration controls.
+- `extensions/vscode/`: the VS Code extension (Activity Bar view, commands, packaging).
 - `vendor/`, `assets/`: offline three.js and app artwork.
 - `scripts/install.ps1`, `scripts/install.sh`: Node-aware installers.
 - `scripts/uninstall.ps1`, `scripts/uninstall.sh`: remove a per-user installation.

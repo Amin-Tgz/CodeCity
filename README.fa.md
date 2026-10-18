@@ -6,6 +6,10 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/Amin-Tz.codecity?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+
 پروژهٔ خود را به شکل یک **شهر سه‌بعدی تعاملی** کاوش کنید. کلاس‌ها و ماژول‌ها به
 ساختمان و پوشه‌ها به محله تبدیل می‌شوند. با انتخاب یک ساختمان، ساختمان‌های مرتبط
 روشن می‌شوند و وابستگی‌ها در نقشه‌ای تعاملی کنار شهر نمایش داده می‌شوند.
@@ -52,10 +56,23 @@ npm start -- --root /path/to/project
 ```
 
 ### ۲. افزونه وی‌اس‌کد (VS Code Extension)
-برای کاوش شهر سه‌بعدی مستقیماً داخل Visual Studio Code:
-1. فایل `codecity-0.4.0.vsix` را از بخش Releases گیت‌هاب دانلود کنید.
-2. در VS Code کلید `Ctrl+Shift+P` را زده و `Extensions: Install from VSIX...` را انتخاب کنید.
-3. با کلیک روی آیکون `CodeCity` در نوار وضعیت یا کلیک‌راست روی هر پوشه در فایل اکسپلورر، شهر سه‌بعدی به صورت یک تب داخلی یا در مرورگر باز می‌شود.
+برای کاوش شهر سه‌بعدی مستقیماً داخل Visual Studio Code. این افزونه در
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity) منتشر شده است:
+1. افزونهٔ **CodeCity 3D Viewer** را از [صفحهٔ Marketplace](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity) نصب کنید یا آن را در بخش Extensions (کلید `Ctrl+Shift+X`) جست‌وجو کنید.
+2. با کلیک روی آیکون `CodeCity` در نوار وضعیت، آیکون CodeCity در نوار فعالیت، یا کلیک‌راست روی هر پوشه در فایل اکسپلورر و انتخاب **CodeCity: Open 3D View**، شهر سه‌بعدی باز می‌شود.
+
+نصب از خط فرمان:
+
+```bash
+code --install-extension Amin-Tz.codecity
+```
+
+اگر بستهٔ آفلاین می‌خواهید، فایل `codecity-0.4.0.vsix` را از
+[GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases) دانلود کنید،
+`Ctrl+Shift+P` را بزنید، `Extensions: Install from VSIX...` را انتخاب کرده و
+فایل را برگزینید.
+
+برای دستورها، تنظیمات و رفع اشکال، [README افزونه](extensions/vscode/README.md) را ببینید.
 
 ### قابلیت‌های جدید و کلیدی این نسخه:
 - **باز کردن پوشهٔ پروژه در فایل منیجر**: دکمهٔ «📁 باز کردن پوشه» در بالای صفحه برای دسترسی مستقیم به پوشهٔ ریشه.
@@ -109,6 +126,7 @@ npm run build:parsers
 ```
 
 - [راهنمای کامل](docs/GUIDE.md): استفاده، معماری، بررسی‌های مرورگر و بنچمارک‌ها.
+- [افزونهٔ وی‌اس‌کد](extensions/vscode/README.md): دستورها، تنظیمات و رفع اشکال.
 - [پژوهش](docs/RESEARCH.md): تحلیل پروژه‌های واقعی و محدودیت‌های باقی‌مانده.
 - [بازبینی](docs/REVIEW.md): یافته‌های ثبت‌شده و بررسی صحت عملکرد.
 - [نتایج تست سرتاسری](docs/E2E.md): تست مرورگر روی پروژه‌های عمومی.

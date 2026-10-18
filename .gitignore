@@ -9,3 +9,6 @@ dist/
 .npm-cache/
 extensions/vscode/runtime/
 extensions/vscode/*.vsix
+
+/demo/
+/.acl-repair/

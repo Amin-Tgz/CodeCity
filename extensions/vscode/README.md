@@ -4,6 +4,12 @@
   <img src="https://raw.githubusercontent.com/Amin-Tgz/CodeCity/main/extensions/vscode/media/codecity.png" alt="CodeCity logo" width="96" />
 </p>
 
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity"><img src="https://img.shields.io/visual-studio-marketplace/v/Amin-Tz.codecity?label=VS%20Code%20Marketplace" alt="VS Code Marketplace" /></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity"><img src="https://img.shields.io/visual-studio-marketplace/i/Amin-Tz.codecity" alt="Installs" /></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity"><img src="https://img.shields.io/visual-studio-marketplace/r/Amin-Tz.codecity" alt="Rating" /></a>
+</p>
+
 Explore any codebase as an interactive **3D code city** without leaving VS Code.
 Classes and modules become **buildings**, folders become **districts**, imports
 become **streets**, and metrics such as methods (NOM), attributes (NOA) and
@@ -31,6 +37,20 @@ are required.
   ever leave your machine.
 
 ## Getting started
+
+Install **CodeCity 3D Viewer** from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity),
+search for it in the Extensions view (`Ctrl+Shift+X`), or run:
+
+```bash
+code --install-extension Amin-Tz.codecity
+```
+
+To install an offline build, download `codecity-0.4.0.vsix` from
+[GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases) and use
+**Extensions: Install from VSIX...**.
+
+Then:
 
 1. Open a folder or workspace in VS Code.
 2. Click the **CodeCity** icon in the Activity Bar (or press `Ctrl+Shift+P` and

@@ -6,6 +6,10 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/Amin-Tz.codecity?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+
 Explore your codebase as an interactive **3D city**. Classes and modules become
 buildings and folders become districts. Select a building to illuminate related
 buildings and explore its dependencies in an interactive map beside the city.
@@ -52,10 +56,28 @@ npm start -- --root /path/to/project
 ```
 
 ### 2. VS Code Extension
-Explore 3D code cities directly inside Visual Studio Code:
-1. Download `codecity-0.4.0.vsix` from [GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases).
-2. Press `Ctrl+Shift+P` in VS Code, choose `Extensions: Install from VSIX...`, and select the package.
-3. Click the `$(globe) CodeCity` status bar item or right-click any folder in the File Explorer.
+Explore 3D code cities directly inside Visual Studio Code. The extension is
+published on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity):
+
+1. Install **CodeCity 3D Viewer** from the
+   [Marketplace page](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity),
+   or search for it in the Extensions view (`Ctrl+Shift+X`).
+2. Click the `$(globe) CodeCity` status bar item, the CodeCity Activity Bar
+   icon, or right-click any folder in the File Explorer and choose
+   **CodeCity: Open 3D View**.
+
+You can also install from the command line:
+
+```bash
+code --install-extension Amin-Tz.codecity
+```
+
+Prefer an offline package? Download `codecity-0.4.0.vsix` from
+[GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases), press
+`Ctrl+Shift+P`, choose `Extensions: Install from VSIX...`, and select it.
+
+See the [extension README](extensions/vscode/README.md) for commands, settings,
+and troubleshooting.
 
 ### Key Features and Improvements:
 - **Open Project Folder**: Direct topbar action (`📁 Open folder`) to open the project root in your OS file manager.
@@ -109,6 +131,7 @@ npm run build:parsers
 ```
 
 - [Full guide](docs/GUIDE.md): usage, architecture, browser checks, and benchmarks.
+- [VS Code extension](extensions/vscode/README.md): commands, settings, and troubleshooting.
 - [Research](docs/RESEARCH.md): real-project analysis and remaining limitations.
 - [Review](docs/REVIEW.md): recorded findings and verification.
 - [End-to-end results](docs/E2E.md): public-project browser testing.
