@@ -409,6 +409,9 @@ export class City {
       if (this.highlightSet.has(id)) { color = HOVER; intensity = 0.55; }
       else opacity = 0.12;
     }
+    // Selection lights up the neighbourhood instead of ghosting the rest:
+    // unrelated buildings keep full opacity, because fading them left a dim
+    // point cloud (dithered by the instanced path) rather than a highlight.
     if(this.focusId && this.streetMode!=='off') {
       const related=this.related.get(id);
       if(id===this.focusId)opacity=1;
@@ -416,7 +419,7 @@ export class City {
         color=RELATED[relationshipRole(related)];
         intensity=.45+.8*Math.sin(Math.PI*this.relationshipPulse/.65);
         opacity=1;
-      } else opacity=Math.min(opacity,.24);
+      }
     }
     if (id === this.hoveredId) { color = HOVER; intensity = 0.45; }
     if (id === this.selected?.userData.buildingId) { color = SELECT; intensity = 0.5; }

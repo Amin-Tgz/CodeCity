@@ -165,7 +165,8 @@ minimized. **Auto-hide** folds idle panels after 1.5 seconds; hovering their
 header or moving keyboard focus into them reveals the contents. The setting
 is remembered. Responsive controls use full-width selectors and scroll when
 the window is short. The top bar wraps without covering the Explore panel.
-Selecting a building highlights its neighbors and dims unrelated buildings.
+Selecting a building lights up its neighbors and leaves every other building
+fully visible, so the city stays readable instead of fading into ghost shapes.
 Blue indicates incoming dependencies, amber outgoing, and purple both directions.
 A brief light pulse introduces the related buildings; paused animations and
 reduced motion disable it. The dependency map in the details panel has directed

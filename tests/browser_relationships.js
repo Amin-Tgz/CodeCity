@@ -14,11 +14,13 @@ export async function runRelationshipChecks() {
       city.select(a.body);
       assert(!city.street.group.visible&&city.street.focusGroup.children.length===0,'default shows streets');
       assert(b.matFull.emissive.getHexString()==='c084fc'&&c.matFull.emissive.getHexString()==='38bdf8','direction colors wrong');
-      assert(other.matFull.opacity===.24&&b.matFull.opacity===1&&a.matFull.opacity===1,'dimming wrong');
+      assert(other.matFull.opacity===1&&b.matFull.opacity===1&&a.matFull.opacity===1,'selection ghosted unrelated buildings');
+      assert(other.matFull.emissive.getHexString()==='ffd79a'&&other.matFull.emissiveIntensity===0,'unrelated building tinted');
+      if(city.instances)assert(city.instances.geometry.getAttribute('instanceOpacity').getX(other.instanceIndex)===1,'instance ghosted while selected');
       const initial=b.matFull.emissiveIntensity;city.update(.2);assert(b.matFull.emissiveIntensity>initial,'pulse did not brighten');
       for(let i=0;i<8;i++)city.update(.1);
       assert(city.relationshipPulse===0&&b.matFull.emissiveIntensity===.45,'pulse did not settle');
-      city.select(c.body);assert(b.matFull.opacity===.24&&a.matFull.emissive.getHexString()==='fbbf24','new selection kept old neighbors');
+      city.select(c.body);assert(b.matFull.opacity===1&&b.matFull.emissiveIntensity===0&&a.matFull.emissive.getHexString()==='fbbf24','new selection kept old neighbors');
       city.setStreetMode('off');assert(b.matFull.opacity===1,'off kept dimming');city.setStreetMode('selected');
       city.select(null);assert([...city.byBuilding.values()].every(e=>e.matFull.opacity===1),'clear kept dimming');
       city.setStreetMode('all');assert(city.street.group.children.every(m=>!m.userData.connection),'floating shared mesh remains');

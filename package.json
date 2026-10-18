@@ -14,7 +14,7 @@
   },
   "scripts": {
     "start": "node server/cli.cjs",
-    "test": "node tests/unit.mjs && node --test tests/server.test.cjs tests/improvements.test.cjs tests/feedback.test.cjs tests/runtime.test.cjs tests/profile.test.cjs tests/history-blobs.test.cjs tests/exclusions.test.cjs tests/e2e_playwright.mjs",
+    "test": "node tests/unit.mjs && node --test tests/server.test.cjs tests/improvements.test.cjs tests/feedback.test.cjs tests/runtime.test.cjs tests/profile.test.cjs tests/history-blobs.test.cjs tests/exclusions.test.cjs tests/e2e_playwright.mjs && node tests/selection_ghost.mjs",
     "build:parsers": "node scripts/build-parsers.cjs",
     "benchmark": "node scripts/benchmark.mjs",
     "audit:project": "node scripts/audit-project.cjs",
