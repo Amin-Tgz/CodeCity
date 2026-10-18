@@ -15,6 +15,11 @@ buildings and folders become districts. Select a building to illuminate related
 buildings and explore its dependencies in an interactive map beside the city.
 CodeCity scans source locally without installing or executing your project's code.
 
+**VS Code extension:** install
+[CodeCity 3D Viewer](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+from the Marketplace, or search for **CodeCity** in the Extensions view
+(`Ctrl+Shift+X`). You can also run `code --install-extension Amin-Tz.codecity`.
+
 ![CodeCity showing a locally scanned project](docs/images/codecity.png)
 
 ## Features

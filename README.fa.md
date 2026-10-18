@@ -15,6 +15,12 @@
 روشن می‌شوند و وابستگی‌ها در نقشه‌ای تعاملی کنار شهر نمایش داده می‌شوند.
 CodeCity کد منبع را به‌صورت محلی بررسی می‌کند، بدون نصب یا اجرای کد پروژهٔ شما.
 
+**افزونهٔ وی‌اس‌کد:** افزونهٔ
+[CodeCity 3D Viewer](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
+را از Marketplace نصب کنید یا در بخش Extensions (کلید `Ctrl+Shift+X`) عبارت
+**CodeCity** را جست‌وجو کنید. دستور
+`code --install-extension Amin-Tz.codecity` هم در دسترس است.
+
 ![نمای CodeCity از یک پروژهٔ بررسی‌شده به‌صورت محلی](docs/images/codecity.png)
 
 ## قابلیت‌ها
