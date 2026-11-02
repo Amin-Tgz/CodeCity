@@ -312,13 +312,17 @@ async function boot() {
   const pauseMotion=document.getElementById('pause-motion');
   try{pauseMotion.checked=localStorage.getItem('codecity.pauseMotion')==='true';}catch{}
   pauseMotion.onchange=()=>{renderDirty=true;try{localStorage.setItem('codecity.pauseMotion',String(pauseMotion.checked));}catch{}};
+  UI.setLoading(t('Scanning project…'));
   await initProjects(loadModel);
   await initProfile();
   UI.setLoading(t('loading city.json …'));
   let model;
   try {
     const res = await fetch('./city.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const failure=await res.json().catch(()=>({}));
+      throw new Error(failure.error||`HTTP ${res.status}`);
+    }
     model = await res.json();
     validateModel(model);
   } catch (err) {

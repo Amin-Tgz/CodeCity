@@ -15,7 +15,9 @@ async function main() {
   }
   if(!Number.isInteger(opts.port)||opts.port<0||opts.port>65535) throw Error('Invalid port.');
   if(!['127.0.0.1','localhost','0.0.0.0','::1'].includes(opts.host)) throw Error('Use a loopback host, or 0.0.0.0 to listen on all interfaces.');
-  const {server,ready}=createApp(opts);await ready;
+  const {server,ready}=createApp(opts);
+  // Listening is independent of analysis: large projects must not time out in VS Code.
+  ready.catch(err=>console.error(`CodeCity analysis: ${err.message}`));
   const listen=port=>new Promise((resolve,reject)=>{
     const failed=err=>{server.removeListener('listening',started);reject(err);};
     const started=()=>{server.removeListener('error',failed);resolve();};

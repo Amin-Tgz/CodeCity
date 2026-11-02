@@ -1,7 +1,7 @@
 // Syntax-only analysis: the pinned compiler parses source; project code is never loaded.
 const ts = require('./typescript.cjs');
 const path = require('node:path');
-function parse(file, text) {
+function parse(file, text, {retainSyntax=true}={}) {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
   const line = pos => sf.getLineAndCharacterOfPosition(pos).line + 1;
   const range = node => ({line:line(node.getStart(sf)), end_line:line(Math.max(node.getStart(sf),node.end-1))});
@@ -80,7 +80,7 @@ function parse(file, text) {
   // Disambiguate repeated declarations without making ordinary identities depend on line numbers.
   const seen=new Map();for(const b of buildings){const k=b.id,n=seen.get(k)||0;seen.set(k,n+1);if(n)b.id+=`#${n+1}`;}
   const headerComments=(ts.getLeadingCommentRanges(text,0)||[]).map(r=>text.slice(r.pos,r.end)).concat(sf.statements.flatMap(n=>n.pos<1024?(ts.getLeadingCommentRanges(text,n.pos)||[]).filter(r=>r.pos<1024).map(r=>text.slice(r.pos,r.end)):[]));
-  return {file,lang:buildings[0]?.language,loc:text.split(/\r?\n/).length-(text.endsWith('\n')?1:0),buildings,imports:imports.map(i=>i.ref),importBindings:imports,calls,exports:Object.fromEntries(exports),text,_sourceFile:sf,_nodeOwners:nodeOwners,_headerComments:headerComments};
+  return {file,lang:buildings[0]?.language,loc:text.split(/\r?\n/).length-(text.endsWith('\n')?1:0),buildings,imports:imports.map(i=>i.ref),importBindings:imports,calls,exports:Object.fromEntries(exports),text,...(retainSyntax?{_sourceFile:sf,_nodeOwners:nodeOwners}:{}),_headerComments:headerComments};
 }
 
 function resolveSymbols(parsed) {

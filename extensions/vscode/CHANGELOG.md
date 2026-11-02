@@ -2,6 +2,18 @@
 
 All notable changes to the CodeCity VS Code extension are documented here.
 
+## 0.4.2
+
+- Open the viewer immediately while the initial project scan runs, avoiding the
+  extension startup timeout on large projects. Display analysis failures in the viewer.
+- Bound JavaScript/TypeScript compiler analysis to 256 files / 4 MiB. Larger
+  projects retain syntax metrics and local module references, with a scan warning
+  explaining that compiler-resolved call edges are unavailable.
+- Buffer split UTF-8 startup messages, report early process exits, and terminate
+  failed or pending launches when they time out or the extension deactivates.
+- Reuse pending launches for the same folder and keep different folders in
+  separate server sessions.
+
 ## 0.4.1
 
 - Selecting a building now highlights its dependencies instead of fading the

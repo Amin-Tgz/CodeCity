@@ -1,11 +1,10 @@
 const vscode = require('vscode');
-const { spawn } = require('node:child_process');
+const {createServerManager} = require('./server-manager.cjs');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-let serverProcess = null;
-let serverUrl = null;
+let serverManager = null;
 let statusBarItem = null;
 
 const LOCALES = [
@@ -29,60 +28,15 @@ function resolveProjectRoot(uri) {
 }
 
 function startServer(rootPath) {
-  return new Promise((resolve, reject) => {
-    if (serverProcess && serverUrl) {
-      return resolve({ url: serverUrl, process: serverProcess });
-    }
-
-    // Use the bundled runtime (packaged .vsix) and fall back to the repo layout for development.
+  if (!serverManager) {
     const cliPath = [
       path.resolve(__dirname, 'runtime', 'server', 'cli.cjs'),
       path.resolve(__dirname, '..', '..', 'server', 'cli.cjs')
-    ].find((candidate) => fs.existsSync(candidate));
-    if (!cliPath) {
-      reject(new Error('CodeCity runtime not found. Reinstall the extension or run npm run package:vscode.'));
-      return;
-    }
-    const child = spawn(process.execPath, [cliPath, '--root', rootPath, '--port', '0', '--no-open'], {
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
-    });
-
-    let settled = false;
-
-    child.stdout.on('data', (chunk) => {
-      const text = chunk.toString();
-      const match = text.match(/CodeCity → (http:\/\/127\.0\.0\.1:\d+\/)/);
-      if (match && !settled) {
-        settled = true;
-        serverUrl = match[1];
-        serverProcess = child;
-        resolve({ url: serverUrl, process: child });
-      }
-    });
-
-    child.stderr.on('data', (chunk) => {
-      console.error(`[CodeCity Error] ${chunk.toString()}`);
-    });
-
-    child.on('error', (err) => {
-      if (!settled) {
-        settled = true;
-        reject(err);
-      }
-    });
-
-    child.on('exit', () => {
-      serverProcess = null;
-      serverUrl = null;
-    });
-
-    setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        reject(new Error('Timed out waiting for CodeCity server to start.'));
-      }
-    }, 12000);
-  });
+    ].find(candidate => fs.existsSync(candidate));
+    if (!cliPath) return Promise.reject(new Error('CodeCity runtime not found. Reinstall the extension or run npm run package:vscode.'));
+    serverManager = createServerManager({cliPath});
+  }
+  return serverManager.start(rootPath);
 }
 
 function appHref(baseUrl, language) {
@@ -269,11 +223,8 @@ function activate(context) {
 }
 
 function deactivate() {
-  if (serverProcess) {
-    serverProcess.kill();
-    serverProcess = null;
-    serverUrl = null;
-  }
+  serverManager?.stopAll();
+  serverManager = null;
 }
 
 module.exports = {

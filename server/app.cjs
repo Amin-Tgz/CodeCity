@@ -73,17 +73,22 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
     try{const saved=JSON.parse(await fs.readFile(exclusionsFile,'utf8'));if(saved&&typeof saved==='object'&&!Array.isArray(saved))for(const [key,value] of Object.entries(saved)){try{exclusionsByRoot[key]=validateRules(value);}catch{}}}catch{}
     if(root){const project=await fs.realpath(path.resolve(root));model=await runAnalysis('scan',project,undefined,{exclusions:exclusionsByRoot[project]||[]});}
   })();
+  // Keep startup failures observable by data requests without an unhandled rejection.
+  let initialError=null;
+  ready.catch(error=>{initialError=error;});
   const saveRecent=async()=>{try {await fs.mkdir(path.dirname(stateFile),{recursive:true});await fs.writeFile(stateFile,JSON.stringify(recent));}catch{/* Read-only home does not prevent using projects. */}};
   const saveExclusions=async()=>{try{await fs.mkdir(path.dirname(exclusionsFile),{recursive:true});await fs.writeFile(exclusionsFile,JSON.stringify(exclusionsByRoot));}catch{model.meta.warnings.push('Exclusions apply for this session; settings could not be saved on this computer.');}};
   const server=http.createServer(async(req,res)=>{
     const json=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
     try {
-      await ready;
       const host=req.headers.host||'';
       // Reject DNS rebinding and cross-origin websites before exposing local paths.
       if(!/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(host)) return json(403,{error:'Use localhost to access CodeCity.'});
       if(req.headers.origin&&req.headers.origin!==`http://${host}`) return json(403,{error:'Cross-origin requests are not allowed.'});
       const url=new URL(req.url,`http://${host}`);
+      // Serve the UI immediately so it can display loading/error feedback during analysis.
+      if(url.pathname==='/city.json'){await ready.catch(()=>{});if(initialError)throw initialError;}
+      if(url.pathname.startsWith('/api/')) await ready.catch(()=>{});
       if(url.pathname==='/api/session'&&req.method==='GET') return json(200,{token,root:model.meta.root,recent,canReveal:true});
       if(url.pathname==='/city.json'&&req.method==='GET') return json(200,model);
       if(url.pathname.startsWith('/api/')) {
@@ -139,7 +144,7 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
           if(busy) return json(409,{error:'A project is already being scanned. Please wait.'});
           if(typeof body.path!=='string'||!body.path.trim()) return json(400,{error:'Choose a project folder.'});
           busy=true;
-          try {const project=await fs.realpath(path.resolve(body.path.trim()));const rules=validateRules([...(exclusionsByRoot[project]||[]),...validateRules(body.exclusions,{allowRoot:false})]);const next=await runAnalysis('scan',project,undefined,{exclusions:rules});model=next;projectEpoch++;snapshots.clear();exclusionsByRoot[project]=rules;await saveExclusions();recent=[model.meta.root,...recent.filter(p=>p!==model.meta.root)].slice(0,10);await saveRecent();return json(200,{model,recent});}finally{busy=false;}
+          try {const project=await fs.realpath(path.resolve(body.path.trim()));const rules=validateRules([...(exclusionsByRoot[project]||[]),...validateRules(body.exclusions,{allowRoot:false})]);const next=await runAnalysis('scan',project,undefined,{exclusions:rules});model=next;initialError=null;projectEpoch++;snapshots.clear();exclusionsByRoot[project]=rules;await saveExclusions();recent=[model.meta.root,...recent.filter(p=>p!==model.meta.root)].slice(0,10);await saveRecent();return json(200,{model,recent});}finally{busy=false;}
         }
         if(url.pathname==='/api/project/exclusions') {
           if(busy)return json(409,{error:'Please wait for the scan.'});
@@ -147,7 +152,7 @@ function createApp({root=null,stateFile=path.join(os.homedir(),'.codecity','rece
           const rules=validateRules(body.rules,{allowRoot:false}),project=model.meta.root;busy=true;
           try{const next=await runAnalysis('scan',project,undefined,{exclusions:rules});model=next;exclusionsByRoot[project]=rules;projectEpoch++;snapshots.clear();await saveExclusions();return json(200,{model});}finally{busy=false;}
         }
-        if(url.pathname==='/api/project/close') {if(busy) return json(409,{error:'Please wait for the scan.'});model=emptyModel();projectEpoch++;snapshots.clear();return json(200,{model});}
+        if(url.pathname==='/api/project/close') {if(busy) return json(409,{error:'Please wait for the scan.'});model=emptyModel();initialError=null;projectEpoch++;snapshots.clear();return json(200,{model});}
         if(url.pathname==='/api/reveal-project') {
           if(!model.meta.root) return json(400,{error:'No project is currently open.'});
           const dir=await fs.realpath(path.resolve(model.meta.root));

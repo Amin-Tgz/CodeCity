@@ -6,6 +6,12 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
+در پروژه‌های بزرگ، نمایشگر هنگام ادامهٔ اسکن باز می‌شود. برای بیش از ۲۵۶ فایل
+JavaScript/TypeScript یا ۴ مگابایت کد این زبان‌ها، معیارهای نحوی و وابستگی‌های
+محلی ماژول‌ها حفظ می‌شوند و تحلیل پرمصرف فراخوانی‌ها و نام‌های مستعار با کامپایلر
+انجام نمی‌شود؛ این محدودیت در گزارش اسکن مشخص است. سقف اسکن ۲۰٬۰۰۰ فایل منبع،
+۲ مگابایت برای هر فایل و دو دقیقه برای تحلیل است.
+
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/Amin-Tz.codecity?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
 [![Rating](https://img.shields.io/visual-studio-marketplace/r/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)

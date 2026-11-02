@@ -59,11 +59,11 @@ function imports(text, lang) {
   for (const re of rules) for (const m of text.matchAll(re)) found.add(m[1]);
   return [...found];
 }
-function analyzeFile(file, text) {
+function analyzeFile(file, text, options={}) {
   const lang = path.extname(file).toLowerCase()==='.h'&&/\b(namespace|class|template)\s|::/.test(text)?'cpp':language(file), lines = text.split(/\r?\n/);
   if (lines.at(-1) === '') lines.pop();
   const loc = lines.length;
-  if(['javascript','typescript'].includes(lang)) return parseJS(file,text);
+  if(['javascript','typescript'].includes(lang)) return parseJS(file,text,options);
   const syntax=languageParsers.parse(file,text,lang);if(syntax)return {...syntax,imports:syntax.imports||imports(text,lang)};
   const district = normalize(path.dirname(file));
   const members = [];
@@ -107,7 +107,12 @@ function analyzeFile(file, text) {
 function modelFromFiles(files, root, options={}) {
   const rules=validateRules(options.exclusions),exclude=matcher(rules),unique=new Map(),duplicates=[];
   for(const f of files){const file=path.posix.normalize(normalize(f.file));if(exclude.file(file))continue;if(unique.has(file)){duplicates.push(file);continue;}unique.set(file,{file,text:f.text});}
-  const model=emptyModel(root), parsed=[...unique.values()].map(f=>analyzeFile(f.file,f.text));
+  // A whole-program checker retains ASTs and symbol tables for every source file.
+  // Bound that work; larger projects keep syntax metrics and local module references.
+  const jsFiles=[...unique.values()].filter(f=>['javascript','typescript'].includes(language(f.file)));
+  const symbolResolution=jsFiles.length<=256&&jsFiles.reduce((n,f)=>n+Buffer.byteLength(f.text),0)<=4*1024*1024;
+  const model=emptyModel(root), parsed=[...unique.values()].map(f=>analyzeFile(f.file,f.text,{retainSyntax:symbolResolution}));
+  if(!symbolResolution)model.meta.warnings.push('Large JavaScript/TypeScript project: compiler symbol resolution was skipped to bound memory. Syntax metrics and local module references are included; call edges are unavailable.');
   if(duplicates.length)model.meta.warnings.push(`Ignored ${duplicates.length} repeated source paths.`);
   const byFile=new Map(parsed.map(f=>[f.file,f]));
   const aliases=new Map();
@@ -172,6 +177,7 @@ function modelFromFiles(files, root, options={}) {
     const key=edge.a+'\0'+edge.b+'\0'+edge.kind;
     if(roads.has(key)){const r=roads.get(key);r.weight+=edge.weight;r.evidence.push(...edge.evidence);}else roads.set(key,edge);
   }
+  for(const f of parsed){delete f._sourceFile;delete f._nodeOwners;}
   model.roads=[...roads.values()];
   for(const r of model.roads){r.confidence ||= 'low';r.evidence ||= [{description:'Resolved module reference; endpoints aggregate file imports.'}];}
   for(const f of parsed) {
@@ -195,6 +201,8 @@ function modelFromFiles(files, root, options={}) {
   model.meta.dependencies=dependencies;
   model.meta.schemaVersion=2;
   model.meta.analysis={source:'scan',version:'2',parsers:[...new Set(model.buildings.map(b=>b.analysis.parser))],limitations:['Languages without bundled grammars use estimated adapters.','Generated classification uses file/header markers.','Only statically resolved local references are represented.']};
+  model.meta.analysis.symbolResolution=symbolResolution?'compiler':'module-references';
+  if(!symbolResolution)model.meta.analysis.limitations.push('Compiler call/alias resolution is skipped above 256 JS/TS files or 4 MiB of JS/TS source.');
   model.meta.precision='mixed';
   const byId=new Map(model.buildings.map(b=>[b.id,b]));
   for(const r of model.roads) {byId.get(r.a).deps+=r.weight;byId.get(r.b).deps+=r.weight;}

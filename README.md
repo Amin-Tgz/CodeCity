@@ -35,6 +35,12 @@ Bundled three.js and parsers let the installed app run offline. Git is optional
 and needed for history. Metrics and dependency estimates guide source review;
 they do not establish code quality or a complete runtime call graph.
 
+Large projects open the viewer while scanning continues. For JavaScript/TypeScript
+projects above 256 source files or 4 MiB of source, CodeCity keeps syntax metrics
+and local module dependencies and skips the memory-intensive compiler call/alias
+pass. Scan diagnostics disclose this limit. Scans are limited to 20,000 source
+files, 2 MB per file, and two minutes of analysis.
+
 ## Get started
 
 ### 1. Global CLI command (Windows, macOS, Linux)
