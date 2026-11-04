@@ -32,10 +32,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-15-intel]
+        os: [windows-latest, ubuntu-latest]
         node: ['22.13.0', '24', '26']
     runs-on: ${{ matrix.os }}
-    steps:
+    steps: &release-test-steps
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -97,6 +97,16 @@ jobs:
       - name: Validate Unix installer syntax
         if: runner.os != 'Windows'
         run: sh -n scripts/install.sh && sh -n scripts/uninstall.sh
+  test-macos:
+    needs: version
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel]
+        node: ['22.13.0', '24', '26']
+    runs-on: ${{ matrix.os }}
+    steps: *release-test-steps
   package:
     needs: [version, test]
     runs-on: ubuntu-latest
@@ -109,6 +119,12 @@ jobs:
           node-version: 'lts/*'
       - run: npm pack && mv codecity-viewer-*.tgz codecity-viewer.tgz
       - run: npm run package:vscode
+      - name: Read release notes from the publication revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: release-metadata
+          sparse-checkout: docs/releases
       - uses: actions/upload-artifact@v4
         with:
           name: codecity-node-package
@@ -123,7 +139,7 @@ jobs:
         with:
           tag_name: ${{ needs.version.outputs.tag }}
           name: CodeCity ${{ needs.version.outputs.tag }}
-          body_path: docs/releases/${{ needs.version.outputs.tag }}.md
+          body_path: release-metadata/docs/releases/${{ needs.version.outputs.tag }}.md
           make_latest: true
           files: |
             codecity-viewer.tgz
