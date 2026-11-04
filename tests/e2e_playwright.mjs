@@ -62,6 +62,8 @@ test('Playwright E2E: complete verification of new features and fixes', async (t
   // 4. Open project via API
   const session = await (await page.request.get(baseUrl + 'api/session')).json();
   const openRes = await page.request.post(baseUrl + 'api/project/open', {
+    // Match the analysis worker's two-minute budget on slower hosted runners.
+    timeout: 120_000,
     headers: { 'X-CodeCity-Token': session.token, 'Content-Type': 'application/json' },
     data: JSON.stringify({ path: projectDir })
   });

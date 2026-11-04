@@ -32,13 +32,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-        node: ['22.13.0', '24', 'node']
+        os: [windows-latest, ubuntu-latest, macos-15-intel]
+        node: ['22.13.0', '24', '26']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.version.outputs.tag }}
+          fetch-depth: 0
+      - name: Verify test runtime matches the release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+        run: git diff --exit-code "$RELEASE_TAG" -- server src vendor assets index.html styles.css package.json package-lock.json extensions/vscode
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
