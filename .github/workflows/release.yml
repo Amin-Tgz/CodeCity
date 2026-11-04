@@ -43,11 +43,13 @@ jobs:
         with:
           node-version: 'lts/*'
       - run: npm pack && mv codecity-viewer-*.tgz codecity-viewer.tgz
+      - run: npm run package:vscode
       - uses: actions/upload-artifact@v4
         with:
           name: codecity-node-package
           path: |
             codecity-viewer.tgz
+            extensions/vscode/*.vsix
             scripts/install.ps1
             scripts/install.sh
             scripts/uninstall.ps1
@@ -55,8 +57,12 @@ jobs:
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          name: CodeCity ${{ github.ref_name }}
+          body_path: docs/releases/${{ github.ref_name }}.md
+          make_latest: true
           files: |
             codecity-viewer.tgz
+            extensions/vscode/*.vsix
             scripts/install.ps1
             scripts/install.sh
             scripts/uninstall.ps1

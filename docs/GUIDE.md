@@ -39,38 +39,47 @@ Git commit inspection reads blobs incrementally and discards binary assets.
 It uses the same 2 MB per-file limit as source scanning, with limits of 128 MB
 of retained source, 256 MB of transferred objects, and 20,000 candidate files.
 
-From this checkout, launch with one command; no dependency install is needed:
-
-```bash
-npm start
-# Or open a folder immediately:
-npm start -- --root /path/to/project
-```
-
 ### One-command npm / npx launch
 
-Run directly from the GitHub source archive
-(no Git installation required):
+The standalone [codecity-viewer](https://www.npmjs.com/package/codecity-viewer)
+package is published on npm. The latest release is **0.4.2**. With Node.js
+22.13.0 or newer and npm installed, no Git installation, clone, or build is needed:
+
+```bash
+npm install -g codecity-viewer
+codecity /path/to/project
+# Or run without a global installation:
+npx --yes --package=codecity-viewer codecity /path/to/project
+```
+
+To pin this release, use `npm install -g codecity-viewer@0.4.2`.
+Git is only required for Git history features.
+
+### Source checkout and development builds
+
+Use the source for development or to try unreleased changes:
+
+```bash
+git clone https://github.com/Amin-Tgz/CodeCity.git
+cd CodeCity
+npm start
+npm start -- --root /path/to/project
+# Optional: install this checkout as a global command:
+npm install -g .
+```
+
+No dependency installation is needed just to run the bundled source checkout.
+To try the development branch without cloning:
 
 ```bash
 npx --yes --package=https://codeload.github.com/Amin-Tgz/CodeCity/tar.gz/refs/heads/main codecity
 ```
 
-The shorter registry command is available only **after publishing** this
-package to npm. Check registry availability before using:
-
-```bash
-npx codecity-viewer
-# Or install once and keep the command:
-npm install -g codecity-viewer
-codecity
-```
-
-To try the package locally before publishing:
+To check a locally built package:
 
 ```bash
 npm pack
-npx --yes --package ./codecity-viewer-0.4.1.tgz codecity
+npx --yes --package ./codecity-viewer-0.4.2.tgz codecity
 ```
 
 The launcher opens your browser, prints its URL, and chooses a free port if
@@ -348,8 +357,8 @@ Extensions view (`Ctrl+Shift+X`), or use the command line:
 code --install-extension Amin-Tz.codecity
 ```
 
-To install an offline build instead, download `codecity-0.4.1.vsix` from
-[GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases), press
+To install an offline build instead, download `codecity-0.4.2.vsix` from
+[release v0.4.2](https://github.com/Amin-Tgz/CodeCity/releases/tag/v0.4.2), press
 `Ctrl+Shift+P`, choose **Extensions: Install from VSIX...**, and select it.
 
 Once installed, open a folder and either:

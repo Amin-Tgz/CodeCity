@@ -12,6 +12,7 @@ JavaScript/TypeScript یا ۴ مگابایت کد این زبان‌ها، مع�
 انجام نمی‌شود؛ این محدودیت در گزارش اسکن مشخص است. سقف اسکن ۲۰٬۰۰۰ فایل منبع،
 ۲ مگابایت برای هر فایل و دو دقیقه برای تحلیل است.
 
+[![npm version](https://img.shields.io/npm/v/codecity-viewer)](https://www.npmjs.com/package/codecity-viewer)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/Amin-Tz.codecity?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
 [![Rating](https://img.shields.io/visual-studio-marketplace/r/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
@@ -44,12 +45,17 @@ Git اختیاری است و برای تاریخچه لازم می‌شود. م�
 
 ## شروع کار
 
-### ۱. نصب سراسری و اجرا از ترمینال (Windows, macOS, Linux)
-پروژه را به صورت سراسری نصب کنید تا در هر مسیری تنها با تایپ دستور `codecity` یا `code-city` باز شود:
+**آخرین نسخه: [0.4.2](https://github.com/Amin-Tgz/CodeCity/releases/tag/v0.4.2).**
+
+### ۱. نصب از npm (Windows, macOS, Linux)
+
+بستهٔ مستقل [codecity-viewer](https://www.npmjs.com/package/codecity-viewer)
+روی npm منتشر شده است. کافی است **Node.js نسخهٔ 22.13.0 یا جدیدتر** و npm
+نصب باشند؛ به نصب Git، کلون مخزن یا ساخت پروژه نیازی نیست. برای دسترسی به
+دستورهای `codecity` و `code-city` از هر ترمینال، بسته را سراسری نصب کنید:
 
 ```bash
-npm install -g .
-# یا در صورت انتشار: npm install -g codecity-viewer
+npm install -g codecity-viewer
 
 # اجرا در هر ترمینال:
 codecity
@@ -59,13 +65,15 @@ codecity .
 codecity /path/to/project
 ```
 
-همچنین می‌توانید بدون نصب سراسری، از داخل پوشهٔ پروژه اجرا کنید:
+همچنین می‌توانید بستهٔ منتشرشده را بدون نصب سراسری اجرا کنید:
 
 ```bash
-npm start
-# یا باز کردن مستقیم:
-npm start -- --root /path/to/project
+npx --yes --package=codecity-viewer codecity /path/to/project
 ```
+
+آخرین نسخهٔ npm برابر **0.4.2** است. برای نصب دقیق همین نسخه، از دستور
+`npm install -g codecity-viewer@0.4.2` استفاده کنید. Git فقط برای قابلیت‌های
+تاریخچهٔ Git لازم است.
 
 ### ۲. افزونه وی‌اس‌کد (VS Code Extension)
 برای کاوش شهر سه‌بعدی مستقیماً داخل Visual Studio Code. این افزونه در
@@ -79,8 +87,8 @@ npm start -- --root /path/to/project
 code --install-extension Amin-Tz.codecity
 ```
 
-اگر بستهٔ آفلاین می‌خواهید، فایل `codecity-0.4.1.vsix` را از
-[GitHub Releases](https://github.com/Amin-Tgz/CodeCity/releases) دانلود کنید،
+اگر بستهٔ آفلاین می‌خواهید، فایل `codecity-0.4.2.vsix` را از
+[ریلیز v0.4.2](https://github.com/Amin-Tgz/CodeCity/releases/tag/v0.4.2) دانلود کنید،
 `Ctrl+Shift+P` را بزنید، `Extensions: Install from VSIX...` را انتخاب کرده و
 فایل را برگزینید.
 
@@ -94,41 +102,34 @@ code --install-extension Amin-Tz.codecity
 - **فیلتر تعاملی پوشه‌ها و ناحیه‌ها**: با نمایش وضعیت روشن/خاموشِ مشخص و دکمهٔ تاگل.
 - **بخش Help غنی‌شده**: همراه با ایموجی‌ها، دیاگرام سه‌بعدی ابعاد ساختمان و راهنمای تصویری کنترل‌های ماوس و کیبورد.
 
-اگر Node و npm نصب هستند، برنامه را مستقیم از GitHub اجرا کنید:
+اگر Node نصب نیست، [نصب‌کننده‌های خودکار](docs/GUIDE.md#installer-also-works-when-node-is-missing)
+می‌توانند نسخهٔ سازگار آن را دانلود و صحت آن را بررسی کنند. این یک روش جایگزین
+برای راه‌اندازی است؛ مسیر اصلی نصب CLI همان بستهٔ npm بالاست.
+
+برای گزینه‌های نصب و حذف، اجراکننده، کنترل‌ها، استثناهای اسکن، قواعد معیارها و
+محدودیت‌های تحلیل، [راهنما](docs/GUIDE.md) را ببینید.
+
+## توسعه و مستندات
+
+برای توسعهٔ CodeCity یا امتحان تغییرات منتشرنشده، از سورس استفاده کنید:
+
+```bash
+git clone https://github.com/Amin-Tgz/CodeCity.git
+cd CodeCity
+npm start
+# باز کردن مستقیم یک پروژه:
+npm start -- --root /path/to/project
+# اختیاری: نصب همین سورس به‌عنوان دستور سراسری:
+npm install -g .
+```
+
+برای امتحان شاخهٔ توسعهٔ فعلی بدون کلون کردن:
 
 ```bash
 npx --yes --package=https://codeload.github.com/Amin-Tgz/CodeCity/tar.gz/refs/heads/main codecity
 ```
 
-اگر Node نصب نیست، از نصب‌کنندهٔ داخل پروژه استفاده کنید:
-
-```powershell
-# Windows
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
-```
-
-```bash
-# macOS / Linux
-sh scripts/install.sh
-```
-
-نصب‌کننده‌ها در صورت نیاز یک نسخهٔ سازگار از Node را دانلود و صحت آن را بررسی
-می‌کنند. برای حذف نصب کاربری، از حذف‌کنندهٔ متناظر استفاده کنید:
-
-```powershell
-# Windows
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall.ps1
-```
-
-```bash
-# macOS / Linux
-sh scripts/uninstall.sh
-```
-
-برای نصب از راه دور، گزینه‌های اجراکننده، گزینه‌های حذف، کنترل‌ها، استثناهای
-اسکن، قواعد معیارها و محدودیت‌های تحلیل، [راهنما](docs/GUIDE.md) را ببینید.
-
-## توسعه و مستندات
+این دستورها از کد در حال توسعه استفاده می‌کنند. برای بررسی‌های توسعه:
 
 ```bash
 npm test
