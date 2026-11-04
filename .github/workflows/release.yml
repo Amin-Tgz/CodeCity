@@ -3,17 +3,42 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
+    branches: ['codex/release-v*']
 permissions:
   contents: write
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Resolve the existing release tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            tag="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF_NAME" == codex/release-v* ]]; then
+            tag="${GITHUB_REF_NAME#codex/release-}"
+          else
+            tag="v$(node -p "require('./package.json').version")"
+          fi
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          git fetch --no-tags origin "refs/tags/$tag:refs/tags/$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
   test:
+    needs: version
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         node: ['22.13.0', '24', 'node']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -29,16 +54,18 @@ jobs:
       - name: Smoke test packaged launcher
         shell: bash
         run: |
-          npm install --prefix output/smoke --omit=dev --no-audit --no-fund output/codecity-viewer-*.tgz
+          npm install --prefix output/smoke --omit=dev --no-audit --no-fund ./output/codecity-viewer-*.tgz
           node output/smoke/node_modules/codecity-viewer/server/cli.cjs --help
       - name: Validate Unix installer syntax
         if: runner.os != 'Windows'
         run: sh -n scripts/install.sh && sh -n scripts/uninstall.sh
   package:
-    needs: test
+    needs: [version, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
@@ -55,10 +82,10 @@ jobs:
             scripts/uninstall.ps1
             scripts/uninstall.sh
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: CodeCity ${{ github.ref_name }}
-          body_path: docs/releases/${{ github.ref_name }}.md
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: CodeCity ${{ needs.version.outputs.tag }}
+          body_path: docs/releases/${{ needs.version.outputs.tag }}.md
           make_latest: true
           files: |
             codecity-viewer.tgz
