@@ -44,11 +44,19 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - name: Use canonical temporary paths for fixtures
+        shell: bash
+        run: |
+          mkdir -p output/test-tmp
+          test_tmp=$(node -p "require('node:fs').realpathSync('output/test-tmp')")
+          for variable in TMPDIR TEMP TMP; do echo "$variable=$test_tmp" >> "$GITHUB_ENV"; done
       - name: Run npm test
         shell: bash
         run: |
+          npm pkg set "scripts.test=$(node -p "require('./package.json').scripts.test.replace('node --test ', 'node --test --test-concurrency=1 --test-reporter=tap ')")"
           if npm test > "$RUNNER_TEMP/codecity-tests.log" 2>&1; then
             cat "$RUNNER_TEMP/codecity-tests.log"
+            git restore package.json
           else
             cat "$RUNNER_TEMP/codecity-tests.log"
             details=$(awk '/^not ok /{printing=1} printing{print} printing && /^  \.\.\./{printing=0}' "$RUNNER_TEMP/codecity-tests.log")
@@ -68,8 +76,19 @@ jobs:
       - name: Smoke test packaged launcher
         shell: bash
         run: |
-          npm install --prefix output/smoke --omit=dev --no-audit --no-fund ./output/codecity-viewer-*.tgz
-          node output/smoke/node_modules/codecity-viewer/server/cli.cjs --help
+          if {
+            npm install --prefix output/smoke --omit=dev --no-audit --no-fund ./output/codecity-viewer-*.tgz &&
+            node output/smoke/node_modules/codecity-viewer/server/cli.cjs --help
+          } > "$RUNNER_TEMP/codecity-smoke.log" 2>&1; then
+            cat "$RUNNER_TEMP/codecity-smoke.log"
+          else
+            details=$(tail -n 30 "$RUNNER_TEMP/codecity-smoke.log")
+            details="${details//'%'/'%25'}"
+            details="${details//$'\r'/'%0D'}"
+            details="${details//$'\n'/'%0A'}"
+            echo "::error title=Packaged launcher failure::$details"
+            exit 1
+          fi
       - name: Validate Unix installer syntax
         if: runner.os != 'Windows'
         run: sh -n scripts/install.sh && sh -n scripts/uninstall.sh
