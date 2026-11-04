@@ -16,6 +16,20 @@ buildings and folders become districts. Select a building to illuminate related
 buildings and explore its dependencies in an interactive map beside the city.
 CodeCity scans source locally without installing or executing your project's code.
 
+## Install from npm (recommended)
+
+**npm package:** [npmjs.com/package/codecity-viewer](https://www.npmjs.com/package/codecity-viewer)
+
+```bash
+npm install -g codecity-viewer
+codecity .
+```
+
+**Latest version: 0.4.2.** Requires Node.js **22.13.0 or newer** and npm.
+No Git installation, repository clone, or build is required. Git is optional
+for history features. Repository-based setup is documented under
+[Development and documentation](#development-and-documentation).
+
 **VS Code extension:** install
 [CodeCity 3D Viewer](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
 from the Marketplace, or search for **CodeCity** in the Extensions view
@@ -46,16 +60,9 @@ files, 2 MB per file, and two minutes of analysis.
 
 **Latest release: [0.4.2](https://github.com/Amin-Tgz/CodeCity/releases/tag/v0.4.2).**
 
-### 1. Install from npm (Windows, macOS, Linux)
-
-The standalone [codecity-viewer](https://www.npmjs.com/package/codecity-viewer)
-package is published on npm. Install Node.js **22.13.0 or newer** with npm,
-then install CodeCity globally; no Git installation, repository clone, or build
-step is required:
+### 1. Use the installed CLI (Windows, macOS, Linux)
 
 ```bash
-npm install -g codecity-viewer
-
 # Run in any directory:
 codecity
 # Open current folder directly:
@@ -105,16 +112,13 @@ and troubleshooting.
 - **Active District Filter Breadcrumbs**: Clear active/inactive styling and toggle-off on repeat clicks.
 - **Enriched Help Guide**: Interactive visual SVG diagrams of building dimensions, emoji indicators, and navigation cards.
 
-If Node is missing, the optional [Node-aware installers](docs/GUIDE.md#installer-also-works-when-node-is-missing)
-can download and verify a compatible runtime. These are an alternative setup
-method; normal CLI installation uses npm as shown above.
-
 See the [guide](docs/GUIDE.md) for installer and uninstall options, launcher
 options, controls, exclusions, metric rules, and analysis limits.
 
 ## Development and documentation
 
-Use a source checkout when developing CodeCity or trying unreleased changes:
+The repository, GitHub source archive, and source installers are for developing
+CodeCity or trying unreleased changes. Start a development checkout with:
 
 ```bash
 git clone https://github.com/Amin-Tgz/CodeCity.git
@@ -133,7 +137,10 @@ npx --yes --package=https://codeload.github.com/Amin-Tgz/CodeCity/tar.gz/refs/he
 ```
 
 These source-based commands use development code rather than the published npm
-release. For development checks:
+release. The [source installers](docs/GUIDE.md#source-installers-development-only)
+can set up a private Node runtime for this development workflow.
+
+For development checks:
 
 ```bash
 npm test

@@ -86,7 +86,12 @@ The launcher opens your browser, prints its URL, and chooses a free port if
 8137 is occupied. Options: `--root FOLDER`, `--port NUMBER`, `--no-open`.
 Bundled parsers and three.js make the installed app usable offline.
 
-### Installer (also works when Node is missing)
+### Source installers (development only)
+
+These installers use a source checkout or the development branch on GitHub.
+They are for development and trying unreleased changes; the primary user
+installation is the published npm package above. They can also download and
+verify Node when a compatible runtime is missing.
 
 From this checkout on Windows, run:
 

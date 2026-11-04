@@ -6,12 +6,6 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-در پروژه‌های بزرگ، نمایشگر هنگام ادامهٔ اسکن باز می‌شود. برای بیش از ۲۵۶ فایل
-JavaScript/TypeScript یا ۴ مگابایت کد این زبان‌ها، معیارهای نحوی و وابستگی‌های
-محلی ماژول‌ها حفظ می‌شوند و تحلیل پرمصرف فراخوانی‌ها و نام‌های مستعار با کامپایلر
-انجام نمی‌شود؛ این محدودیت در گزارش اسکن مشخص است. سقف اسکن ۲۰٬۰۰۰ فایل منبع،
-۲ مگابایت برای هر فایل و دو دقیقه برای تحلیل است.
-
 [![npm version](https://img.shields.io/npm/v/codecity-viewer)](https://www.npmjs.com/package/codecity-viewer)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/Amin-Tz.codecity?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/Amin-Tz.codecity)](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
@@ -21,6 +15,20 @@ JavaScript/TypeScript یا ۴ مگابایت کد این زبان‌ها، مع�
 ساختمان و پوشه‌ها به محله تبدیل می‌شوند. با انتخاب یک ساختمان، ساختمان‌های مرتبط
 روشن می‌شوند و وابستگی‌ها در نقشه‌ای تعاملی کنار شهر نمایش داده می‌شوند.
 CodeCity کد منبع را به‌صورت محلی بررسی می‌کند، بدون نصب یا اجرای کد پروژهٔ شما.
+
+## نصب از npm (روش اصلی)
+
+**صفحهٔ بسته در npm:** [npmjs.com/package/codecity-viewer](https://www.npmjs.com/package/codecity-viewer)
+
+```bash
+npm install -g codecity-viewer
+codecity .
+```
+
+**آخرین نسخه: 0.4.2.** پیش‌نیاز: **Node.js نسخهٔ 22.13.0 یا جدیدتر** و npm.
+به نصب Git، کلون مخزن یا ساخت پروژه نیازی نیست. Git فقط برای قابلیت‌های تاریخچه
+لازم است. روش‌های مبتنی بر مخزن مخصوص توسعه‌اند و در بخش
+[توسعه و مستندات](#توسعه-و-مستندات) آمده‌اند.
 
 **افزونهٔ وی‌اس‌کد:** افزونهٔ
 [CodeCity 3D Viewer](https://marketplace.visualstudio.com/items?itemName=Amin-Tz.codecity)
@@ -43,20 +51,19 @@ CodeCity کد منبع را به‌صورت محلی بررسی می‌کند، 
 Git اختیاری است و برای تاریخچه لازم می‌شود. معیارها و تخمین وابستگی‌ها به بررسی
 کد کمک می‌کنند؛ کیفیت کد یا کامل بودن گراف فراخوانی هنگام اجرا را اثبات نمی‌کنند.
 
+در پروژه‌های بزرگ، نمایشگر هنگام ادامهٔ اسکن باز می‌شود. برای بیش از ۲۵۶ فایل
+JavaScript/TypeScript یا ۴ مگابایت کد این زبان‌ها، معیارهای نحوی و وابستگی‌های
+محلی ماژول‌ها حفظ می‌شوند و تحلیل پرمصرف فراخوانی‌ها و نام‌های مستعار با کامپایلر
+انجام نمی‌شود؛ این محدودیت در گزارش اسکن مشخص است. سقف اسکن ۲۰٬۰۰۰ فایل منبع،
+۲ مگابایت برای هر فایل و دو دقیقه برای تحلیل است.
+
 ## شروع کار
 
 **آخرین نسخه: [0.4.2](https://github.com/Amin-Tgz/CodeCity/releases/tag/v0.4.2).**
 
-### ۱. نصب از npm (Windows, macOS, Linux)
-
-بستهٔ مستقل [codecity-viewer](https://www.npmjs.com/package/codecity-viewer)
-روی npm منتشر شده است. کافی است **Node.js نسخهٔ 22.13.0 یا جدیدتر** و npm
-نصب باشند؛ به نصب Git، کلون مخزن یا ساخت پروژه نیازی نیست. برای دسترسی به
-دستورهای `codecity` و `code-city` از هر ترمینال، بسته را سراسری نصب کنید:
+### ۱. استفاده از CLI نصب‌شده (Windows, macOS, Linux)
 
 ```bash
-npm install -g codecity-viewer
-
 # اجرا در هر ترمینال:
 codecity
 # یا برای باز کردن مستقیم پوشه جاری:
@@ -102,16 +109,13 @@ code --install-extension Amin-Tz.codecity
 - **فیلتر تعاملی پوشه‌ها و ناحیه‌ها**: با نمایش وضعیت روشن/خاموشِ مشخص و دکمهٔ تاگل.
 - **بخش Help غنی‌شده**: همراه با ایموجی‌ها، دیاگرام سه‌بعدی ابعاد ساختمان و راهنمای تصویری کنترل‌های ماوس و کیبورد.
 
-اگر Node نصب نیست، [نصب‌کننده‌های خودکار](docs/GUIDE.md#installer-also-works-when-node-is-missing)
-می‌توانند نسخهٔ سازگار آن را دانلود و صحت آن را بررسی کنند. این یک روش جایگزین
-برای راه‌اندازی است؛ مسیر اصلی نصب CLI همان بستهٔ npm بالاست.
-
 برای گزینه‌های نصب و حذف، اجراکننده، کنترل‌ها، استثناهای اسکن، قواعد معیارها و
 محدودیت‌های تحلیل، [راهنما](docs/GUIDE.md) را ببینید.
 
 ## توسعه و مستندات
 
-برای توسعهٔ CodeCity یا امتحان تغییرات منتشرنشده، از سورس استفاده کنید:
+مخزن، آرشیو سورس GitHub و نصب‌کننده‌های سورس مخصوص توسعهٔ CodeCity یا امتحان
+تغییرات منتشرنشده‌اند. برای راه‌اندازی محیط توسعه:
 
 ```bash
 git clone https://github.com/Amin-Tgz/CodeCity.git
@@ -129,7 +133,11 @@ npm install -g .
 npx --yes --package=https://codeload.github.com/Amin-Tgz/CodeCity/tar.gz/refs/heads/main codecity
 ```
 
-این دستورها از کد در حال توسعه استفاده می‌کنند. برای بررسی‌های توسعه:
+این دستورها از کد در حال توسعه استفاده می‌کنند.
+[نصب‌کننده‌های سورس](docs/GUIDE.md#source-installers-development-only) هم می‌توانند
+یک نسخهٔ خصوصی از Node را برای این محیط توسعه آماده کنند.
+
+برای بررسی‌های توسعه:
 
 ```bash
 npm test
