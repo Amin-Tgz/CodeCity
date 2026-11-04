@@ -44,7 +44,21 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npm test
+      - name: Run npm test
+        shell: bash
+        run: |
+          if npm test > "$RUNNER_TEMP/codecity-tests.log" 2>&1; then
+            cat "$RUNNER_TEMP/codecity-tests.log"
+          else
+            cat "$RUNNER_TEMP/codecity-tests.log"
+            details=$(awk '/^not ok /{printing=1} printing{print} printing && /^  \.\.\./{printing=0}' "$RUNNER_TEMP/codecity-tests.log")
+            if [[ -z "$details" ]]; then details=$(tail -n 100 "$RUNNER_TEMP/codecity-tests.log"); fi
+            details="${details//'%'/'%25'}"
+            details="${details//$'\r'/'%0D'}"
+            details="${details//$'\n'/'%0A'}"
+            echo "::error title=CodeCity test failures::$details"
+            exit 1
+          fi
       - name: Verify Windows installer branches
         if: runner.os == 'Windows'
         shell: powershell
